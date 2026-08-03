@@ -5,6 +5,7 @@ import { usePlayer } from "@/components/player/PlayerProvider";
 import { SyncedLyrics } from "@/components/player/SyncedLyrics";
 import { PauseIcon, PlayIcon } from "@/components/player/icons";
 import { formatTime } from "@/lib/formatTime";
+import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
 import type { PlayerTrack } from "@/lib/playerTypes";
 
 export function TrackPlayPanel({ track }: { track: PlayerTrack }) {
@@ -68,7 +69,10 @@ export function TrackPlayPanel({ track }: { track: PlayerTrack }) {
           />
           <div className="mt-1 flex justify-between text-xs tabular-nums text-muted">
             <span>{formatTime(displayTime)}</span>
-            <span>{formatTime(displayDuration)}</span>
+            <span>
+              {formatTime(displayDuration)}
+              {formatLufs(viewing.lufs) && ` · ${formatLufs(viewing.lufs)}`}
+            </span>
           </div>
         </div>
       </div>
@@ -88,7 +92,7 @@ export function TrackPlayPanel({ track }: { track: PlayerTrack }) {
                     : "rounded-full border border-border px-3 py-1 text-xs hover:bg-surface"
                 }
               >
-                {v.label}
+                {formatVersionLabel(v)}
                 {isPlayingThis && player.isPlaying ? " ●" : ""}
               </button>
             );

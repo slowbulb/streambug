@@ -12,6 +12,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { AddVersionForm } from "@/components/upload/AddVersionForm";
 import { TrackPlayPanel } from "@/components/player/TrackPlayPanel";
 import { formatBytes } from "@/lib/formatBytes";
+import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
 import { formatTime } from "@/lib/formatTime";
 import { toLrc } from "@/lib/lrc";
 import { getTrackForPlayer, toPlayerTrack } from "@/lib/queries";
@@ -51,7 +52,7 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
           {track.versions.map((version) => (
             <details key={version.id} className="rounded-lg border border-border bg-surface">
               <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                <span className="text-sm font-medium">{version.label}</span>
+                <span className="text-sm font-medium">{formatVersionLabel(version)}</span>
                 {version.isDefault && (
                   <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-medium text-accent">
                     Default
@@ -60,6 +61,7 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
                 <span className="text-xs text-muted">
                   {version.durationSec ? formatTime(version.durationSec) : "—"} ·{" "}
                   {formatBytes(version.fileSize)}
+                  {formatLufs(version.lufs) && ` · ${formatLufs(version.lufs)}`}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   {!version.isDefault && (
@@ -75,7 +77,7 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
                   {track.versions.length > 1 && (
                     <DeleteButton
                       action={deleteVersionAction.bind(null, track.id, version.id)}
-                      confirmMessage={`Delete the "${version.label}" version? This can't be undone.`}
+                      confirmMessage={`Delete ${formatVersionLabel(version)}? This can't be undone.`}
                       label="Delete"
                     />
                   )}

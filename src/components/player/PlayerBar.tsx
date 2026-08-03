@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePlayer } from "@/components/player/PlayerProvider";
 import { formatTime } from "@/lib/formatTime";
+import { formatVersionLabel } from "@/lib/formatLufs";
 import { PauseIcon, PlayIcon } from "@/components/player/icons";
 
 export function PlayerBar() {
@@ -77,7 +78,7 @@ export function PlayerBar() {
           >
             {track.versions.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.label}
+                {formatVersionLabel(v)}
               </option>
             ))}
           </select>

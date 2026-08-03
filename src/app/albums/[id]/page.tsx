@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteAlbumAction } from "@/app/actions";
 import { DeleteButton } from "@/components/DeleteButton";
-import { TrackRow } from "@/components/TrackRow";
+import { ReorderableTrackList } from "@/components/ReorderableTrackList";
 import { getAlbumWithTracks } from "@/lib/queries";
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
@@ -52,11 +52,10 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
       {tracks.length === 0 ? (
         <p className="text-sm text-muted">No tracks in this album yet.</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {tracks.map((track) => (
-            <TrackRow key={track.id} track={track} showAlbum={false} />
-          ))}
-        </div>
+        <>
+          <p className="text-xs text-muted">Drag tracks to reorder them.</p>
+          <ReorderableTrackList albumId={album.id} tracks={tracks} />
+        </>
       )}
     </div>
   );

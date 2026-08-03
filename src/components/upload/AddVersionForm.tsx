@@ -6,7 +6,15 @@ import { useUploadSubmit } from "@/lib/useUploadSubmit";
 export function AddVersionForm({ trackId, hasBlob }: { trackId: string; hasBlob: boolean }) {
   const { handleSubmit, isUploading, isPending, error } = useUploadSubmit(
     addVersionAction.bind(null, trackId),
-    { fieldName: "audio", folder: "audio", urlField: "audioUrl", keyField: "audioKey", required: true, probeDuration: true },
+    {
+      fieldName: "audio",
+      folder: "audio",
+      urlField: "audioUrl",
+      keyField: "audioKey",
+      required: true,
+      probeDuration: true,
+      probeLufs: true,
+    },
     hasBlob,
   );
 
@@ -18,10 +26,9 @@ export function AddVersionForm({ trackId, hasBlob }: { trackId: string; hasBlob:
       className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 sm:flex-row sm:items-end"
     >
       <label className="flex flex-1 flex-col gap-1 text-sm">
-        Label
+        Nickname (optional)
         <input
           name="label"
-          required
           placeholder="e.g. Live, Acoustic, Remix"
           className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
         />
@@ -36,7 +43,7 @@ export function AddVersionForm({ trackId, hasBlob }: { trackId: string; hasBlob:
         disabled={busy}
         className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isUploading ? "Uploading…" : isPending ? "Saving…" : "Add version"}
+        {isUploading ? "Analyzing…" : isPending ? "Saving…" : "Add version"}
       </button>
     </form>
   );

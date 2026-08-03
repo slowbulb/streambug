@@ -1,6 +1,7 @@
 "use client";
 
 import { upload } from "@vercel/blob/client";
+import lufs from "@audio/loudness-lufs";
 
 export async function uploadFileDirect(
   file: File,
@@ -30,4 +31,33 @@ export function probeDurationClient(file: File): Promise<number | undefined> {
     });
     audio.src = url;
   });
+}
+
+// Integrated loudness (LUFS, ITU-R BS.1770-4), measured client-side by fully
+// decoding the file with the Web Audio API and running a pure-JS gated
+// K-weighted measurement over the decoded samples. There's no server-side
+// equivalent that doesn't require shelling out to ffmpeg, so this always
+// runs client-side regardless of which upload path (Blob vs local-disk) is
+// used. Best-effort: returns undefined for formats the browser can't decode,
+// or effectively-silent audio.
+export async function measureLufsClient(file: File): Promise<number | undefined> {
+  try {
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const audioCtx = new AudioContextCtor();
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, i) =>
+        audioBuffer.getChannelData(i),
+      );
+      const value = lufs(channels, { fs: audioBuffer.sampleRate });
+      return value === null ? undefined : value;
+    } finally {
+      await audioCtx.close();
+    }
+  } catch {
+    return undefined;
+  }
 }

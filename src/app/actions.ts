@@ -31,6 +31,7 @@ type ResolvedAudio = {
   mimeType: string;
   fileSize: number;
   durationSec?: number;
+  lufs?: number;
 };
 
 /**
@@ -39,6 +40,11 @@ type ResolvedAudio = {
  * (the local-disk dev fallback, which never leaves the server).
  */
 async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> {
+  // Measured client-side regardless of upload path (no server-side
+  // equivalent without shelling out to ffmpeg) — see clientUpload.ts.
+  const lufsRaw = str(formData, "lufs");
+  const lufs = lufsRaw ? Number(lufsRaw) : undefined;
+
   const preUploadedUrl = str(formData, "audioUrl");
   if (preUploadedUrl) {
     const key = str(formData, "audioKey");
@@ -50,6 +56,7 @@ async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> 
       mimeType: str(formData, "mimeType") ?? "application/octet-stream",
       fileSize: Number(str(formData, "fileSize") ?? "0"),
       durationSec: durationSec ? Number(durationSec) : undefined,
+      lufs,
     };
   }
 
@@ -61,7 +68,14 @@ async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> 
     saveUploadedFile(audio, "audio"),
     probeDurationSec(audio),
   ]);
-  return { url, key, mimeType: audio.type || "application/octet-stream", fileSize: audio.size, durationSec };
+  return {
+    url,
+    key,
+    mimeType: audio.type || "application/octet-stream",
+    fileSize: audio.size,
+    durationSec,
+    lufs,
+  };
 }
 
 /** Same idea as resolveUploadedAudio, for the optional album cover image. */
@@ -148,16 +162,21 @@ export async function createTrackAction(formData: FormData) {
   const title = str(formData, "title");
   if (!title) throw new Error("Track title is required");
   const albumId = str(formData, "albumId");
-  const label = str(formData, "label") ?? "Original";
+  const label = str(formData, "label");
 
-  const { url, key, mimeType, fileSize, durationSec } = await resolveUploadedAudio(formData);
+  const [{ url, key, mimeType, fileSize, durationSec, lufs }, position] = await Promise.all([
+    resolveUploadedAudio(formData),
+    prisma.track.count({ where: { albumId } }),
+  ]);
 
   const track = await prisma.track.create({
     data: {
       title,
       albumId,
+      position,
       versions: {
         create: {
+          versionNumber: 1,
           label,
           isDefault: true,
           audioUrl: url,
@@ -165,6 +184,7 @@ export async function createTrackAction(formData: FormData) {
           mimeType,
           fileSize,
           durationSec,
+          lufs,
         },
       },
     },
@@ -194,9 +214,8 @@ export async function updateTrackAction(trackId: string, formData: FormData) {
 /** Add another version (e.g. a remix or live take) of an existing track. */
 export async function addVersionAction(trackId: string, formData: FormData) {
   const label = str(formData, "label");
-  if (!label) throw new Error("A label for this version is required");
 
-  const [{ url, key, mimeType, fileSize, durationSec }, existingCount] = await Promise.all([
+  const [{ url, key, mimeType, fileSize, durationSec, lufs }, existingCount] = await Promise.all([
     resolveUploadedAudio(formData),
     prisma.trackVersion.count({ where: { trackId } }),
   ]);
@@ -204,6 +223,7 @@ export async function addVersionAction(trackId: string, formData: FormData) {
   await prisma.trackVersion.create({
     data: {
       trackId,
+      versionNumber: existingCount + 1,
       label,
       isDefault: existingCount === 0,
       audioUrl: url,
@@ -211,6 +231,7 @@ export async function addVersionAction(trackId: string, formData: FormData) {
       mimeType,
       fileSize,
       durationSec,
+      lufs,
     },
   });
 
@@ -296,4 +317,78 @@ export async function saveLyricsAction(trackId: string, versionId: string, formD
 export async function clearLyricsAction(trackId: string, versionId: string) {
   await prisma.lyricLine.deleteMany({ where: { trackVersionId: versionId } });
   revalidatePath(`/tracks/${trackId}`);
+}
+
+/**
+ * Drag one track onto another: folds every version of the source track into
+ * the target track as new versions (auto-numbered after the target's
+ * existing ones), carrying their lyrics along, then deletes the now-empty
+ * source track. The underlying audio files are reused as-is (just
+ * re-pointed at new TrackVersion rows), never re-uploaded or deleted.
+ */
+export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetTrackId: string) {
+  if (sourceTrackId === targetTrackId) return;
+
+  const [source, target, targetMaxVersion] = await Promise.all([
+    prisma.track.findUniqueOrThrow({
+      where: { id: sourceTrackId },
+      include: { versions: { orderBy: { versionNumber: "asc" }, include: { lyrics: true } } },
+    }),
+    prisma.track.findUniqueOrThrow({ where: { id: targetTrackId } }),
+    prisma.trackVersion.aggregate({
+      where: { trackId: targetTrackId },
+      _max: { versionNumber: true },
+    }),
+  ]);
+
+  let nextVersionNumber = (targetMaxVersion._max.versionNumber ?? 0) + 1;
+
+  await prisma.$transaction(async (tx) => {
+    for (const version of source.versions) {
+      const newVersion = await tx.trackVersion.create({
+        data: {
+          trackId: targetTrackId,
+          versionNumber: nextVersionNumber++,
+          label: version.label ?? source.title,
+          isDefault: false,
+          audioUrl: version.audioUrl,
+          storageKey: version.storageKey,
+          mimeType: version.mimeType,
+          fileSize: version.fileSize,
+          durationSec: version.durationSec,
+          lufs: version.lufs,
+        },
+      });
+      if (version.lyrics.length > 0) {
+        await tx.lyricLine.createMany({
+          data: version.lyrics.map((l) => ({
+            trackVersionId: newVersion.id,
+            timeMs: l.timeMs,
+            text: l.text,
+            order: l.order,
+          })),
+        });
+      }
+    }
+    // Cascades: deletes the source track's (now-superseded) TrackVersion
+    // and LyricLine rows. Does not touch the underlying files — those are
+    // now owned by the new versions created above.
+    await tx.track.delete({ where: { id: sourceTrackId } });
+  });
+
+  revalidatePath("/tracks");
+  revalidatePath("/");
+  revalidatePath(`/tracks/${targetTrackId}`);
+  if (source.albumId) revalidatePath(`/albums/${source.albumId}`);
+  if (target.albumId && target.albumId !== source.albumId) revalidatePath(`/albums/${target.albumId}`);
+}
+
+/** Persist a new track order within an album after a drag-and-drop reorder. */
+export async function reorderTracksAction(albumId: string, orderedTrackIds: string[]) {
+  await prisma.$transaction(
+    orderedTrackIds.map((id, index) =>
+      prisma.track.update({ where: { id }, data: { position: index } }),
+    ),
+  );
+  revalidatePath(`/albums/${albumId}`);
 }

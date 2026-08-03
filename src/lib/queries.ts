@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
-import type { PlayerTrack } from "@/lib/playerTypes";
+
+export { toPlayerTrack } from "@/lib/toPlayerTrack";
 
 const trackInclude = {
   album: true,
   versions: {
-    orderBy: { createdAt: "asc" as const },
+    orderBy: { versionNumber: "asc" as const },
     include: {
       lyrics: { orderBy: [{ timeMs: "asc" as const }, { order: "asc" as const }] },
     },
@@ -35,7 +36,7 @@ export async function getAlbumWithTracks(albumId: string) {
   if (!album) return null;
   const tracks = await prisma.track.findMany({
     where: { albumId },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     include: trackInclude,
   });
   return { album, tracks };
@@ -56,21 +57,4 @@ export async function getAllAlbums() {
   });
 }
 
-type TrackForPlayer = NonNullable<Awaited<ReturnType<typeof getTrackForPlayer>>>;
-
-export function toPlayerTrack(track: TrackForPlayer): PlayerTrack {
-  return {
-    id: track.id,
-    title: track.title,
-    albumId: track.albumId,
-    albumTitle: track.album?.title ?? null,
-    versions: track.versions.map((v) => ({
-      id: v.id,
-      label: v.label,
-      audioUrl: v.audioUrl,
-      durationSec: v.durationSec,
-      isDefault: v.isDefault,
-      lyrics: v.lyrics.map((l) => ({ id: l.id, timeMs: l.timeMs, text: l.text })),
-    })),
-  };
-}
+export type TrackListItem = Awaited<ReturnType<typeof getRecentTracks>>[number];

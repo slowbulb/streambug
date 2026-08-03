@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TrackRow } from "@/components/TrackRow";
+import { MergeableTrackList } from "@/components/MergeableTrackList";
 import { getAllTracks } from "@/lib/queries";
 
 export default async function TracksPage() {
@@ -20,11 +20,12 @@ export default async function TracksPage() {
       {tracks.length === 0 ? (
         <p className="text-sm text-muted">No tracks yet.</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {tracks.map((track) => (
-            <TrackRow key={track.id} track={track} />
-          ))}
-        </div>
+        <>
+          <p className="text-xs text-muted">
+            Drag one track onto another to fold it in as a new version of that track.
+          </p>
+          <MergeableTrackList tracks={tracks} />
+        </>
       )}
     </div>
   );

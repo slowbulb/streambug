@@ -77,13 +77,48 @@ and wiped on every deploy.
 
 ## Data model
 
-- `Album` — title, description, cover image
-- `Track` — a title, optionally in an album
-- `TrackVersion` — one uploaded audio file per variant of a track (label,
-  e.g. "Studio", "Live", "Acoustic Demo"; exactly one is the default that
-  plays when the track is opened)
+- `Album` — title, description, cover image, manually orderable track list
+- `Track` — a title (auto-filled from the uploaded filename, editable),
+  optionally in an album, with a `position` for drag-reordering within its
+  album
+- `TrackVersion` — one uploaded audio file per variant of a track. Versions
+  are auto-numbered per track (`versionNumber`, 1/2/3/...) with an optional
+  nickname (`label`, e.g. "Studio", "Live"); exactly one is the default that
+  plays when the track is opened. `lufs` holds the integrated loudness
+  measurement, when available.
 - `LyricLine` — time-synced lyric lines per version, parsed from pasted
   LRC-format text (`[mm:ss.xx] line text`)
+
+## Loudness (LUFS)
+
+Every uploaded file gets its integrated loudness measured client-side: the
+browser decodes the audio via the Web Audio API and runs a pure-JS ITU-R
+BS.1770-4 gated K-weighted measurement (`@audio/loudness-lufs`) over the
+decoded samples (`src/lib/clientUpload.ts`). There's no server-side
+equivalent that doesn't require shelling out to `ffmpeg`, so this always
+happens in the browser regardless of which upload path is used, and is
+best-effort — formats the browser can't decode, or effectively-silent audio,
+just show no LUFS value rather than failing the upload.
+
+## Reordering and merging tracks
+
+- **Reorder within an album**: on an album's page, drag a track row onto
+  another to move it there — persisted via `Track.position`
+  (`src/components/ReorderableTrackList.tsx`).
+- **Merge as a version**: on the "All tracks" page, drag one track onto
+  another to fold every version of the dragged track into the target as new
+  (auto-numbered) versions, carrying over their lyrics, then delete the
+  now-empty source track (`mergeTrackIntoVersionAction` in
+  `src/app/actions.ts`, `src/components/MergeableTrackList.tsx`). Useful when
+  the same song ended up uploaded as two separate tracks by mistake. The
+  underlying audio files are reused as-is, not re-uploaded.
+
+These are two different pages on purpose — dragging a track means something
+different in each place, and splitting them avoids needing to guess which
+gesture you meant from where you drop.
+
+Expand any track row (the "N versions" toggle) to see and play each version
+individually without opening the track page.
 
 ## How version switching works
 
@@ -127,5 +162,6 @@ aren't supported — sync is the point of the feature.
   with the deployed URL. This is meant as a personal, presumably
   access-controlled deployment (e.g. behind your host's access controls); add
   auth before putting real content on a public URL.
-- No drag-to-reorder for tracks within an album (they're ordered by upload
-  date).
+- LUFS measurement decodes the full file in the browser, which is memory-
+  heavy for very long/lossless files on low-end devices; it's best-effort and
+  silently skipped if it fails.

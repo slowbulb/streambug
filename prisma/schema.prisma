@@ -23,6 +23,7 @@ model Album {
 model Track {
   id        String   @id @default(cuid())
   title     String
+  position  Int      @default(0)
   albumId   String?
   album     Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
@@ -36,21 +37,26 @@ model Track {
 // A single uploaded audio file representing one variant of a track
 // (e.g. "Studio", "Live", "Acoustic Demo"). Exactly one version per
 // track is flagged as the default that plays when the track is opened.
+// versionNumber is assigned automatically (1, 2, 3, ... per track) and
+// label is an optional nickname on top of that.
 model TrackVersion {
-  id          String   @id @default(cuid())
-  trackId     String
-  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  label       String
-  isDefault   Boolean  @default(false)
-  audioUrl    String
-  storageKey  String
-  mimeType    String
-  fileSize    Int
-  durationSec Float?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  trackId       String
+  track         Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  label         String?
+  isDefault     Boolean  @default(false)
+  audioUrl      String
+  storageKey    String
+  mimeType      String
+  fileSize      Int
+  durationSec   Float?
+  lufs          Float?
+  createdAt     DateTime @default(now())
 
   lyrics LyricLine[]
 
+  @@unique([trackId, versionNumber])
   @@index([trackId])
 }
 

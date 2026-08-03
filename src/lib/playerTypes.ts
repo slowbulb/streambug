@@ -2,9 +2,11 @@ export type PlayerLyricLine = { id: string; timeMs: number; text: string };
 
 export type PlayerVersion = {
   id: string;
-  label: string;
+  versionNumber: number;
+  label: string | null;
   audioUrl: string;
   durationSec: number | null;
+  lufs: number | null;
   isDefault: boolean;
   lyrics: PlayerLyricLine[];
 };
