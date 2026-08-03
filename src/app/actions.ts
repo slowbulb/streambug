@@ -409,3 +409,43 @@ export async function reorderTracksAction(albumId: string, orderedTrackIds: stri
   );
   revalidatePath(`/albums/${albumId}`);
 }
+
+/**
+ * Moves a track to a (possibly different) album and places it at a specific
+ * position there — used by the /map page, where dragging a track onto an
+ * album appends it, and dragging it onto another track inserts it right
+ * before that track (in whichever album that track belongs to). Recomputes
+ * position for every track in the destination album so order stays dense
+ * and gap-free.
+ */
+export async function moveTrackAction(
+  trackId: string,
+  albumId: string | null,
+  beforeTrackId?: string,
+) {
+  const before = await prisma.track.findUniqueOrThrow({ where: { id: trackId } });
+
+  await prisma.$transaction(async (tx) => {
+    const siblings = await tx.track.findMany({
+      where: { albumId },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    });
+    const orderedIds = siblings.map((t) => t.id).filter((id) => id !== trackId);
+    const insertIndex = beforeTrackId ? orderedIds.indexOf(beforeTrackId) : -1;
+    orderedIds.splice(insertIndex === -1 ? orderedIds.length : insertIndex, 0, trackId);
+
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        tx.track.update({ where: { id }, data: { position: index, albumId } }),
+      ),
+    );
+  });
+
+  revalidatePath("/");
+  revalidatePath("/albums");
+  revalidatePath("/tracks");
+  revalidatePath("/map");
+  if (before.albumId) revalidatePath(`/albums/${before.albumId}`);
+  if (albumId && albumId !== before.albumId) revalidatePath(`/albums/${albumId}`);
+}

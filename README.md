@@ -136,6 +136,21 @@ gesture you meant from where you drop.
 Expand any track row (the "N versions" toggle) to see and play each version
 individually without opening the track page.
 
+## Map
+
+`/map` (`src/components/LibraryMap.tsx`) is a whole-library overview: every
+album as a node with its tracks branching off in order (numbered, connected
+by a tree-style line rather than a literal mind-map canvas — easier to keep
+legible and draggable reliably than freeform node positions), singles in
+their own cluster, laid out in flowing columns. Drag a track onto an album's
+header to move it there (appended at the end); drag it onto another track to
+move *and* insert it at that exact position — same gesture whether the
+target track is in a different album or the same one, so this single page
+covers both moving tracks between albums and reordering them, unlike the
+album/all-tracks pages which each do one or the other. Backed by
+`moveTrackAction`, which recomputes position for the whole destination album
+in one transaction.
+
 ## Drag files from your computer to upload
 
 Drag audio files from Finder/Explorer and drop them anywhere on the app

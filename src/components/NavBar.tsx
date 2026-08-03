@@ -14,6 +14,9 @@ export function NavBar() {
           <Link href="/tracks" className="hover:text-foreground">
             All tracks
           </Link>
+          <Link href="/map" className="hover:text-foreground">
+            Map
+          </Link>
         </div>
         <Link
           href="/tracks/new"
