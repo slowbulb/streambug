@@ -1,0 +1,67 @@
+// Prisma schema for the personal audio library / player.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Album {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverUrl    String?
+  coverKey    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tracks      Track[]
+}
+
+model Track {
+  id        String   @id @default(cuid())
+  title     String
+  albumId   String?
+  album     Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions TrackVersion[]
+
+  @@index([albumId])
+}
+
+// A single uploaded audio file representing one variant of a track
+// (e.g. "Studio", "Live", "Acoustic Demo"). Exactly one version per
+// track is flagged as the default that plays when the track is opened.
+model TrackVersion {
+  id          String   @id @default(cuid())
+  trackId     String
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  label       String
+  isDefault   Boolean  @default(false)
+  audioUrl    String
+  storageKey  String
+  mimeType    String
+  fileSize    Int
+  durationSec Float?
+  createdAt   DateTime @default(now())
+
+  lyrics LyricLine[]
+
+  @@index([trackId])
+}
+
+// One line of time-synced lyrics (parsed from LRC-format text).
+model LyricLine {
+  id             String       @id @default(cuid())
+  trackVersionId String
+  trackVersion   TrackVersion @relation(fields: [trackVersionId], references: [id], onDelete: Cascade)
+  timeMs         Int
+  text           String
+  order          Int
+
+  @@index([trackVersionId, timeMs])
+}
