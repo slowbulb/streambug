@@ -98,7 +98,19 @@ decoded samples (`src/lib/clientUpload.ts`). There's no server-side
 equivalent that doesn't require shelling out to `ffmpeg`, so this always
 happens in the browser regardless of which upload path is used, and is
 best-effort — formats the browser can't decode, or effectively-silent audio,
-just show no LUFS value rather than failing the upload.
+just show no LUFS value rather than failing the upload. It's shown next to
+each track in list views and on the track page.
+
+**Normalize** (toggle in the bottom player bar) evens out playback loudness
+across tracks by applying a per-track gain adjustment toward -2 LUFS, computed
+from each version's measured value and capped at ±12dB so a very quiet
+recording doesn't get boosted into clipping. This needs the Web Audio API
+(`src/components/player/PlayerProvider.tsx`), which only takes effect for
+audio fetched in CORS mode — enabling it the first time reloads the current
+track under CORS and, if the storage host doesn't support that, normalization
+turns itself back off with an inline message rather than leaving playback
+silently broken. This whole path is opt-in and only touched once you turn
+the toggle on, so it can't affect default playback.
 
 ## Reordering and merging tracks
 

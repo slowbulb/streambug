@@ -67,6 +67,11 @@ export function TrackRow({
             {track.versions.length} versions {expanded ? "▲" : "▼"}
           </button>
         )}
+        {formatLufs(defaultVersion?.lufs) && (
+          <span className="hidden shrink-0 text-xs tabular-nums text-muted sm:inline">
+            {formatLufs(defaultVersion?.lufs)}
+          </span>
+        )}
         <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted">
           {defaultVersion?.durationSec ? formatTime(defaultVersion.durationSec) : "—"}
         </span>

@@ -17,12 +17,20 @@ export function PlayerBar() {
     togglePlay,
     seek,
     switchVersion,
+    normalize,
+    toggleNormalize,
+    normalizeError,
   } = usePlayer();
 
   if (!track || !activeVersion) return null;
 
   return (
     <div className="sticky bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+      {normalizeError && (
+        <p className="mx-auto max-w-5xl px-4 pt-2 text-xs text-red-600 dark:text-red-400">
+          {normalizeError}
+        </p>
+      )}
       <div className="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 items-center gap-3 sm:w-56">
           <button
@@ -83,6 +91,19 @@ export function PlayerBar() {
             ))}
           </select>
         )}
+
+        <button
+          onClick={toggleNormalize}
+          title="Adjust each track's volume to a consistent loudness"
+          aria-pressed={normalize}
+          className={
+            normalize
+              ? "shrink-0 rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground"
+              : "shrink-0 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-background"
+          }
+        >
+          Normalize
+        </button>
       </div>
     </div>
   );
