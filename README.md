@@ -120,6 +120,18 @@ gesture you meant from where you drop.
 Expand any track row (the "N versions" toggle) to see and play each version
 individually without opening the track page.
 
+## Drag files from your computer to upload
+
+Drag audio files from Finder/Explorer and drop them anywhere on the app
+(`src/components/upload/GlobalDropZone.tsx`, mounted in the root layout) to
+upload them as new tracks with no form — the title is taken straight from
+the filename. Drop while viewing an album's page and the tracks are added to
+that album (detected from the URL); anywhere else, they come in as singles.
+Dropping several files at once uploads them all. This uses the same
+upload/LUFS/duration logic as the regular upload form
+(`quickAddTrackAction` in `src/app/actions.ts`), just without a redirect,
+since navigating away mid-drop wouldn't make sense for a multi-file drop.
+
 ## How version switching works
 
 The player (`src/components/player/PlayerProvider.tsx`) holds a single

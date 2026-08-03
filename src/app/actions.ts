@@ -157,8 +157,7 @@ export async function deleteAlbumAction(albumId: string) {
   redirect("/albums");
 }
 
-/** Create a new track with its first version (audio file required). */
-export async function createTrackAction(formData: FormData) {
+async function createTrackRecord(formData: FormData) {
   const title = str(formData, "title");
   if (!title) throw new Error("Track title is required");
   const albumId = str(formData, "albumId");
@@ -192,8 +191,26 @@ export async function createTrackAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/albums");
+  revalidatePath("/tracks");
   if (albumId) revalidatePath(`/albums/${albumId}`);
+
+  return track;
+}
+
+/** Create a new track with its first version (audio file required). */
+export async function createTrackAction(formData: FormData) {
+  const track = await createTrackRecord(formData);
   redirect(`/tracks/${track.id}`);
+}
+
+/**
+ * Same as createTrackAction but for the global drag-and-drop uploader: no
+ * redirect (dropping several files shouldn't navigate away mid-batch), just
+ * returns the new track so the drop UI can show a confirmation.
+ */
+export async function quickAddTrackAction(formData: FormData): Promise<{ id: string; title: string }> {
+  const track = await createTrackRecord(formData);
+  return { id: track.id, title: track.title };
 }
 
 /** Edit a track's title, or move it to a different album. */

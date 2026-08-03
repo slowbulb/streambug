@@ -4,6 +4,8 @@ import "./globals.css";
 import { NavBar } from "@/components/NavBar";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
 import { PlayerBar } from "@/components/player/PlayerBar";
+import { GlobalDropZone } from "@/components/upload/GlobalDropZone";
+import { isBlobStorageEnabled } from "@/lib/storage";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +44,7 @@ export default function RootLayout({
             {children}
           </main>
           <PlayerBar />
+          <GlobalDropZone hasBlob={isBlobStorageEnabled()} />
         </PlayerProvider>
       </body>
     </html>
