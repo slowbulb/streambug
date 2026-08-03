@@ -22,10 +22,12 @@ type PlayerState = {
 type ResumePoint = { time: number; playing: boolean };
 
 // Loudness normalization target and how far we'll let a single track be
-// boosted to reach it. Real music sits well below -2 LUFS, so quiet tracks
-// often ask for a large boost; capping it keeps normalization from pushing
-// already-dynamic material into audible clipping.
-const NORMALIZE_TARGET_LUFS = -2;
+// boosted to reach it. -14 LUFS matches what streaming services (Spotify
+// etc.) normalize to — loud enough to sound consistent without needing so
+// much gain on quiet tracks that peaks get pushed into clipping. The cap
+// is a second line of defense for anything unusually quiet; the limiter
+// below (on the output) is the real safety net against clipping.
+const NORMALIZE_TARGET_LUFS = -14;
 const MAX_GAIN_ADJUST_DB = 12;
 
 type PlayerContextValue = PlayerState & {
@@ -72,6 +74,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // this — see toggleNormalize.
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const limiterNodeRef = useRef<DynamicsCompressorNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const corsEnabledRef = useRef(false);
   const awaitingCorsReloadRef = useRef(false);
@@ -133,9 +136,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const ctx = new AudioContextCtor();
     const source = ctx.createMediaElementSource(audio);
     const gain = ctx.createGain();
-    source.connect(gain).connect(ctx.destination);
+    // Safety net against clipping: normalization boosts quiet tracks based
+    // on their *average* loudness, but a boosted transient peak can still
+    // exceed 0dBFS even with a sensible target. This limits the output
+    // rather than letting it clip outright. Not a true sample-accurate
+    // brickwall limiter (Web Audio doesn't offer one without a custom
+    // AudioWorklet), but a fast/hard compressor gets close enough in
+    // practice.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.1;
+    source.connect(gain).connect(limiter).connect(ctx.destination);
     audioCtxRef.current = ctx;
     gainNodeRef.current = gain;
+    limiterNodeRef.current = limiter;
     sourceNodeRef.current = source;
   }, []);
 
@@ -178,9 +195,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Keep the normalization gain in sync with the toggle and whichever
   // version is currently playing (different versions can have different
-  // measured loudness).
+  // measured loudness). The limiter's threshold rides along too — parked at
+  // 0dB (effectively a no-op) when normalization is off, so turning it off
+  // sounds identical to a track that was never routed through this graph,
+  // rather than staying subtly limited near its own natural peaks.
   useEffect(() => {
     const gain = gainNodeRef.current;
+    const limiter = limiterNodeRef.current;
+    if (limiter) limiter.threshold.value = normalize ? -1 : 0;
     if (!gain) return;
     if (normalize && activeVersion?.lufs != null) {
       const deltaDb = Math.max(

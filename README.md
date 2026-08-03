@@ -102,9 +102,13 @@ just show no LUFS value rather than failing the upload. It's shown next to
 each track in list views and on the track page.
 
 **Normalize** (toggle in the bottom player bar) evens out playback loudness
-across tracks by applying a per-track gain adjustment toward -2 LUFS, computed
-from each version's measured value and capped at ±12dB so a very quiet
-recording doesn't get boosted into clipping. This needs the Web Audio API
+across tracks by applying a per-track gain adjustment toward -14 LUFS (the
+streaming-platform standard, e.g. Spotify) computed from each version's
+measured value and capped at ±12dB. A limiter on the output (a Web Audio
+`DynamicsCompressorNode` tuned aggressively, engaged only while Normalize is
+on) catches transient peaks that boosted-but-still-dynamic material can push
+past 0dBFS, which the gain adjustment alone can't prevent since LUFS is an
+average, not a peak measurement. This needs the Web Audio API
 (`src/components/player/PlayerProvider.tsx`), which only takes effect for
 audio fetched in CORS mode — enabling it the first time reloads the current
 track under CORS and, if the storage host doesn't support that, normalization
