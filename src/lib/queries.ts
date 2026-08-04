@@ -94,3 +94,13 @@ export async function getLibraryMap() {
 
 export type LibraryMapAlbum = Awaited<ReturnType<typeof getLibraryMap>>["albums"][number];
 export type LibraryMapTrack = Awaited<ReturnType<typeof getLibraryMap>>["tracks"][number];
+
+// Versions uploaded before the waveform feature existed have no peaks yet —
+// used to power a one-off "backfill" action that fetches and analyzes them.
+export async function getVersionsMissingWaveform() {
+  return prisma.trackVersion.findMany({
+    where: { waveformPeaks: { isEmpty: true } },
+    select: { id: true, audioUrl: true, track: { select: { title: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+}

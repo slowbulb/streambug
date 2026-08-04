@@ -471,3 +471,21 @@ export async function moveTrackAction(
   if (before.albumId) revalidatePath(`/albums/${before.albumId}`);
   if (albumId && albumId !== before.albumId) revalidatePath(`/albums/${albumId}`);
 }
+
+/**
+ * Saves a waveform computed after the fact for a version that predates the
+ * waveform feature — see analyzeAudioFromUrl in clientUpload.ts, which
+ * fetches and decodes the already-stored audio to produce it.
+ */
+export async function backfillWaveformAction(versionId: string, waveformPeaks: number[]) {
+  const version = await prisma.trackVersion.update({
+    where: { id: versionId },
+    data: { waveformPeaks },
+    select: { trackId: true, track: { select: { albumId: true } } },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/tracks");
+  revalidatePath(`/tracks/${version.trackId}`);
+  if (version.track.albumId) revalidatePath(`/albums/${version.track.albumId}`);
+}

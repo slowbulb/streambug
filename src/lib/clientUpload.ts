@@ -64,19 +64,18 @@ function computeWaveformPeaks(channels: Float32Array[]): number[] {
 export type AudioAnalysis = { lufs?: number; waveformPeaks?: number[] };
 
 // Integrated loudness (LUFS, ITU-R BS.1770-4) and a waveform preview, both
-// measured client-side from a single decode of the file with the Web Audio
-// API — there's no server-side equivalent that doesn't require shelling out
-// to ffmpeg, so this always runs client-side regardless of which upload path
-// (Blob vs local-disk) is used. Best-effort: returns an empty result for
-// formats the browser can't decode, or effectively-silent audio.
-export async function analyzeAudioClient(file: File): Promise<AudioAnalysis> {
+// measured client-side from a single decode of raw audio bytes with the Web
+// Audio API — there's no server-side equivalent that doesn't require
+// shelling out to ffmpeg, so this always runs client-side. Best-effort:
+// returns an empty result for formats the browser can't decode, or
+// effectively-silent audio.
+async function analyzeArrayBuffer(arrayBuffer: ArrayBuffer): Promise<AudioAnalysis> {
   try {
     const AudioContextCtor =
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const audioCtx = new AudioContextCtor();
     try {
-      const arrayBuffer = await file.arrayBuffer();
       const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       const channels = Array.from({ length: audioBuffer.numberOfChannels }, (_, i) =>
         audioBuffer.getChannelData(i),
@@ -92,4 +91,19 @@ export async function analyzeAudioClient(file: File): Promise<AudioAnalysis> {
   } catch {
     return {};
   }
+}
+
+// Used at upload time, when the audio hasn't left the browser yet.
+export async function analyzeAudioClient(file: File): Promise<AudioAnalysis> {
+  return analyzeArrayBuffer(await file.arrayBuffer());
+}
+
+// Used to backfill LUFS/waveform for versions uploaded before either
+// existed: fetches the already-stored file and analyzes it the same way.
+// Works cross-origin against Vercel Blob's public URLs, which send
+// permissive CORS headers (same as the Normalize feature relies on).
+export async function analyzeAudioFromUrl(url: string): Promise<AudioAnalysis> {
+  const res = await fetch(url);
+  if (!res.ok) return {};
+  return analyzeArrayBuffer(await res.arrayBuffer());
 }

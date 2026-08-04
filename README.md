@@ -139,7 +139,11 @@ expanded version list, for the currently-playing track's row, and in place
 of the plain progress bar on the track page and in the bottom player bar —
 in all of those it doubles as a click-to-seek control once it's the version
 actually playing. Versions uploaded before this existed just have an empty
-`waveformPeaks` array and fall back to the plain range input.
+`waveformPeaks` array and fall back to the plain range input — the "All
+tracks" page shows a one-off **Generate waveforms** button when any exist,
+which fetches each one's already-stored audio and analyzes it the same way
+a fresh upload would (`analyzeAudioFromUrl`, `backfillWaveformAction`,
+`src/components/BackfillWaveforms.tsx`), no re-upload needed.
 
 Each version also stores the original uploaded filename
 (`TrackVersion.originalFilename`), shown as a version's label when no

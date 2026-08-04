@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { BackfillWaveforms } from "@/components/BackfillWaveforms";
 import { MergeableTrackList } from "@/components/MergeableTrackList";
-import { getAllTracks } from "@/lib/queries";
+import { getAllTracks, getVersionsMissingWaveform } from "@/lib/queries";
 
 export default async function TracksPage() {
-  const tracks = await getAllTracks();
+  const [tracks, missingWaveform] = await Promise.all([getAllTracks(), getVersionsMissingWaveform()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -16,6 +17,14 @@ export default async function TracksPage() {
           Upload
         </Link>
       </div>
+
+      <BackfillWaveforms
+        versions={missingWaveform.map((v) => ({
+          id: v.id,
+          audioUrl: v.audioUrl,
+          trackTitle: v.track.title,
+        }))}
+      />
 
       {tracks.length === 0 ? (
         <p className="text-sm text-muted">No tracks yet.</p>
