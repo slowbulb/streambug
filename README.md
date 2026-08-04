@@ -128,20 +128,23 @@ leaving playback silently broken.
 
 ## Reordering and merging tracks
 
-- **Reorder within an album**: on an album's page, drag a track row onto
-  another to move it there — persisted via `Track.position`
-  (`src/components/ReorderableTrackList.tsx`).
-- **Merge as a version**: on the "All tracks" page, drag one track onto
-  another to fold every version of the dragged track into the target as new
-  (auto-numbered) versions, carrying over their lyrics, then delete the
-  now-empty source track (`mergeTrackIntoVersionAction` in
-  `src/app/actions.ts`, `src/components/MergeableTrackList.tsx`). Useful when
-  the same song ended up uploaded as two separate tracks by mistake. The
-  underlying audio files are reused as-is, not re-uploaded.
+- **Merge as a version**: drag one track directly onto another — on an
+  album's page or the "All tracks" page — to fold every version of the
+  dragged track into the target as new (auto-numbered) versions, carrying
+  over their lyrics, then delete the now-empty source track
+  (`mergeTrackIntoVersionAction` in `src/app/actions.ts`,
+  `src/components/MergeableTrackList.tsx`,
+  `src/components/ReorderableTrackList.tsx`). Useful when the same song
+  ended up uploaded as two separate tracks by mistake. The underlying audio
+  files are reused as-is, not re-uploaded.
+- **Reorder within an album**: on an album's page, drag a track into the gap
+  between two tracks (or before the first / after the last) instead of onto
+  a track — the gap only shows up as its own drop target while a drag is in
+  progress, keeping it distinct from a merge — persisted via `Track.position`
+  (`moveTrackAction`, `src/components/ReorderableTrackList.tsx`).
 
-These are two different pages on purpose — dragging a track means something
-different in each place, and splitting them avoids needing to guess which
-gesture you meant from where you drop.
+The "All tracks" page only supports merging, since there's no per-album
+order to reorder within there.
 
 Expand any track row (the "N versions" toggle) to see and play each version
 individually without opening the track page.

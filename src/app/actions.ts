@@ -404,16 +404,6 @@ export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetT
   if (target.albumId && target.albumId !== source.albumId) revalidatePath(`/albums/${target.albumId}`);
 }
 
-/** Persist a new track order within an album after a drag-and-drop reorder. */
-export async function reorderTracksAction(albumId: string, orderedTrackIds: string[]) {
-  await prisma.$transaction(
-    orderedTrackIds.map((id, index) =>
-      prisma.track.update({ where: { id }, data: { position: index } }),
-    ),
-  );
-  revalidatePath(`/albums/${albumId}`);
-}
-
 /**
  * Moves a track to a (possibly different) album and places it at a specific
  * position there — used by the /map page, where dragging a track onto an
