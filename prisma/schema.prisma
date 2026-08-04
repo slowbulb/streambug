@@ -12,6 +12,7 @@ datasource db {
 model Album {
   id          String   @id @default(cuid())
   title       String
+  artist      String?
   description String?
   coverUrl    String?
   coverKey    String?

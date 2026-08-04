@@ -67,6 +67,7 @@ export function LibraryMap({
         <Cluster
           key={album.id}
           title={album.title}
+          subtitle={album.artist}
           coverUrl={album.coverUrl}
           tracks={tracks.filter((t) => t.albumId === album.id).sort((a, b) => a.position - b.position)}
           dragId={dragId}
@@ -96,6 +97,7 @@ export function LibraryMap({
 
 function Cluster({
   title,
+  subtitle,
   coverUrl,
   dashed = false,
   tracks,
@@ -108,6 +110,7 @@ function Cluster({
   onDropOnTrack,
 }: {
   title: string;
+  subtitle?: string | null;
   coverUrl?: string | null;
   dashed?: boolean;
   tracks: LibraryMapTrack[];
@@ -150,7 +153,10 @@ function Cluster({
             {dashed ? "•" : "🎵"}
           </span>
         )}
-        <span className="truncate text-sm font-semibold">{title}</span>
+        <span className="min-w-0 truncate">
+          <span className="block truncate text-sm font-semibold">{title}</span>
+          {subtitle && <span className="block truncate text-xs text-muted">{subtitle}</span>}
+        </span>
         <span className="ml-auto shrink-0 text-xs text-muted">{tracks.length}</span>
       </div>
 

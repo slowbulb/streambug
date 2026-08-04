@@ -24,6 +24,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <h1 className="text-2xl font-semibold">{album.title}</h1>
+          {album.artist && <p className="text-sm text-muted">{album.artist}</p>}
           {album.description && <p className="text-sm text-muted">{album.description}</p>}
           <p className="text-xs text-muted">
             {tracks.length} track{tracks.length === 1 ? "" : "s"}

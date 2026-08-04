@@ -98,6 +98,7 @@ async function resolveUploadedCover(
 export async function createAlbumAction(formData: FormData) {
   const title = str(formData, "title");
   if (!title) throw new Error("Album title is required");
+  const artist = str(formData, "artist");
   const description = str(formData, "description");
 
   const stored = await resolveUploadedCover(formData);
@@ -105,6 +106,7 @@ export async function createAlbumAction(formData: FormData) {
   const album = await prisma.album.create({
     data: {
       title,
+      artist,
       description,
       coverUrl: stored?.url ?? null,
       coverKey: stored?.key ?? null,
@@ -120,14 +122,16 @@ export async function createAlbumAction(formData: FormData) {
 export async function updateAlbumAction(albumId: string, formData: FormData) {
   const title = str(formData, "title");
   if (!title) throw new Error("Album title is required");
+  const artist = str(formData, "artist");
   const description = str(formData, "description");
 
   const data: {
     title: string;
+    artist: string | null;
     description: string | null;
     coverUrl?: string;
     coverKey?: string;
-  } = { title, description };
+  } = { title, artist, description };
 
   const stored = await resolveUploadedCover(formData);
   if (stored) {

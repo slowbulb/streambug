@@ -16,5 +16,6 @@ export type PlayerTrack = {
   title: string;
   albumId: string | null;
   albumTitle: string | null;
+  albumArtist: string | null;
   versions: PlayerVersion[];
 };

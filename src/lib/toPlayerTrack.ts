@@ -11,6 +11,7 @@ export function toPlayerTrack(track: TrackForPlayer): PlayerTrack {
     title: track.title,
     albumId: track.albumId,
     albumTitle: track.album?.title ?? null,
+    albumArtist: track.album?.artist ?? null,
     versions: track.versions.map((v) => ({
       id: v.id,
       versionNumber: v.versionNumber,

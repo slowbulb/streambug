@@ -58,7 +58,8 @@ export default async function Home() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium group-hover:underline">{album.title}</p>
-                  <p className="text-xs text-muted">
+                  <p className="truncate text-xs text-muted">
+                    {album.artist ? `${album.artist} · ` : ""}
                     {album._count.tracks} track{album._count.tracks === 1 ? "" : "s"}
                   </p>
                 </div>

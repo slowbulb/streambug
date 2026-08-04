@@ -77,7 +77,8 @@ and wiped on every deploy.
 
 ## Data model
 
-- `Album` — title, description, cover image, manually orderable track list
+- `Album` — title, artist, description, cover image, manually orderable
+  track list
 - `Track` — a title (auto-filled from the uploaded filename, editable),
   optionally in an album, with a `position` for drag-reordering within its
   album

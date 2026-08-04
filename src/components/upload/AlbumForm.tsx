@@ -8,7 +8,7 @@ export function AlbumForm({
   album,
 }: {
   hasBlob: boolean;
-  album?: { id: string; title: string; description: string | null };
+  album?: { id: string; title: string; artist: string | null; description: string | null };
 }) {
   const action = album ? updateAlbumAction.bind(null, album.id) : createAlbumAction;
   const { handleSubmit, isUploading, isPending, error } = useUploadSubmit(
@@ -28,6 +28,14 @@ export function AlbumForm({
           required
           autoFocus
           defaultValue={album?.title}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Artist (optional)
+        <input
+          name="artist"
+          defaultValue={album?.artist ?? ""}
           className="rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
         />
       </label>

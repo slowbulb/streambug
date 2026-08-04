@@ -54,6 +54,7 @@ export function PlayerBar() {
               {track.title}
             </Link>
             <p className="truncate text-xs text-muted">
+              {track.albumArtist ? `${track.albumArtist} · ` : ""}
               {track.albumTitle ?? "Single"}
             </p>
           </div>

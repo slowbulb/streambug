@@ -65,7 +65,7 @@ export async function getLibraryMap() {
   const [albums, tracks] = await Promise.all([
     prisma.album.findMany({
       orderBy: { createdAt: "asc" },
-      select: { id: true, title: true, coverUrl: true },
+      select: { id: true, title: true, artist: true, coverUrl: true },
     }),
     prisma.track.findMany({
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
