@@ -134,7 +134,8 @@ is only decoded once, and both measurements are derived from that same
 decoded buffer. The waveform is ~80 amplitude buckets (`TrackVersion.waveformPeaks`,
 max absolute sample per bucket, normalized), rendered as a bar chart
 (`src/components/Waveform.tsx`) rather than a canvas, since a rough preview
-is all that's needed here. It's shown for every version in a track's
+is all that's needed here, rendered with centered/mirrored bars and a hover
+preview like SoundCloud's player. It's shown for every version in a track's
 expanded version list, for the currently-playing track's row, and in place
 of the plain progress bar on the track page and in the bottom player bar —
 in all of those it doubles as a click-to-seek control once it's the version
@@ -166,9 +167,18 @@ custom nickname was given (`formatVersionLabel` in `src/lib/formatLufs.ts`)
   a track — the gap only shows up as its own drop target while a drag is in
   progress, keeping it distinct from a merge — persisted via `Track.position`
   (`moveTrackAction`, `src/components/ReorderableTrackList.tsx`).
+- **Split a version back out**: the reverse of merging — expand a track's
+  version list and drag one version out, dropping it anywhere on the page
+  (a full-page drop target appears while dragging, mirroring the OS-file-drop
+  overlay) to pull it into a brand new standalone track. The version becomes
+  that new track's sole (default) version; if it was the default of the
+  track it came from, the next remaining version is promoted
+  (`splitVersionIntoTrackAction` in `src/app/actions.ts`,
+  `src/components/VersionDragZone.tsx`, draggable version rows in
+  `src/components/TrackRow.tsx`). No-op if the track only has one version.
 
-The "All tracks" page only supports merging, since there's no per-album
-order to reorder within there.
+The "All tracks" page only supports merging (and splitting), since there's
+no per-album order to reorder within there.
 
 Expand any track row (the "N versions" toggle) to see and play each version
 individually without opening the track page.

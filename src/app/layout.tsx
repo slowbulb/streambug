@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { PlayerProvider } from "@/components/player/PlayerProvider";
 import { PlayerBar } from "@/components/player/PlayerBar";
 import { GlobalDropZone } from "@/components/upload/GlobalDropZone";
+import { VersionDragZone } from "@/components/VersionDragZone";
 import { isBlobStorageEnabled } from "@/lib/storage";
 
 const geistSans = Geist({
@@ -45,6 +46,7 @@ export default function RootLayout({
           </main>
           <PlayerBar />
           <GlobalDropZone hasBlob={isBlobStorageEnabled()} />
+          <VersionDragZone />
         </PlayerProvider>
       </body>
     </html>

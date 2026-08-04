@@ -8,6 +8,7 @@ import { Waveform } from "@/components/Waveform";
 import { formatTime } from "@/lib/formatTime";
 import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
 import { toPlayerTrack } from "@/lib/toPlayerTrack";
+import { VERSION_DRAG_MIME } from "@/lib/dragTypes";
 import type { TrackListItem } from "@/lib/queries";
 
 type DragProps = {
@@ -34,6 +35,7 @@ export function TrackRow({
   dropHint?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [draggingVersionId, setDraggingVersionId] = useState<string | null>(null);
   const player = usePlayer();
   const playerTrack = toPlayerTrack(track);
   const defaultVersion = track.versions.find((v) => v.isDefault) ?? track.versions[0];
@@ -99,7 +101,20 @@ export function TrackRow({
           {track.versions.map((v) => {
             const isThisVersionLive = isLive && player.activeVersionId === v.id;
             return (
-              <div key={v.id} className="flex items-center gap-3">
+              <div
+                key={v.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(VERSION_DRAG_MIME, JSON.stringify({ versionId: v.id }));
+                  e.dataTransfer.effectAllowed = "move";
+                  setDraggingVersionId(v.id);
+                }}
+                onDragEnd={() => setDraggingVersionId(null)}
+                title="Drag out to make this its own track"
+                className={`flex cursor-grab items-center gap-3 active:cursor-grabbing ${
+                  draggingVersionId === v.id ? "opacity-40" : ""
+                }`}
+              >
                 <PlayTrackButton track={playerTrack} versionId={v.id} size="sm" />
                 <span className="min-w-0 max-w-40 shrink truncate text-sm">
                   {formatVersionLabel(v)}

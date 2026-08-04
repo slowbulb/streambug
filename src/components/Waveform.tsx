@@ -1,12 +1,16 @@
 "use client";
 
+import { useRef, useState } from "react";
+
 /**
- * Static waveform preview from precomputed amplitude buckets
- * (TrackVersion.waveformPeaks). Purely presentational bars — no canvas, no
- * audio decoding here. When `onSeek` is given, clicking anywhere in it maps
- * the click position to a 0..1 fraction; `progress` (also 0..1) colors the
- * bars up to that point differently so it doubles as a playback position
- * indicator.
+ * SoundCloud-style waveform preview from precomputed amplitude buckets
+ * (TrackVersion.waveformPeaks): bars centered vertically, rounded caps,
+ * three-tier coloring (played / hovered / unplayed). Purely presentational —
+ * no canvas, no audio decoding here. When `onSeek` is given, clicking maps
+ * the click position to a 0..1 fraction; `progress` (also 0..1) colors bars
+ * up to that point differently so it doubles as a playback position
+ * indicator, and hovering previews the seek target the same way SoundCloud's
+ * player does.
  */
 export function Waveform({
   peaks,
@@ -23,28 +27,37 @@ export function Waveform({
   height?: number;
   className?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoverFraction, setHoverFraction] = useState<number | null>(null);
+
   if (peaks.length === 0) return null;
 
-  function handleClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (!onSeek) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const fraction = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
-    onSeek(Math.min(1, Math.max(0, fraction)));
+  function fractionAt(clientX: number): number {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return 0;
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
   }
 
   return (
     <div
-      onClick={handleClick}
-      className={`flex items-end gap-px ${onSeek ? "cursor-pointer" : ""} ${className}`}
+      ref={containerRef}
+      draggable={false}
+      onClick={(e) => onSeek?.(fractionAt(e.clientX))}
+      onMouseMove={(e) => onSeek && setHoverFraction(fractionAt(e.clientX))}
+      onMouseLeave={() => setHoverFraction(null)}
+      className={`flex items-center gap-px ${onSeek ? "cursor-pointer" : ""} ${className}`}
       style={{ height }}
     >
       {peaks.map((p, i) => {
-        const played = progress !== undefined && i / peaks.length < progress;
+        const at = i / peaks.length;
+        const isPlayed = progress !== undefined && at < progress;
+        const isHovered = !isPlayed && hoverFraction !== null && at < hoverFraction;
+        const color = isPlayed ? "bg-accent" : isHovered ? "bg-accent/40" : "bg-border";
         return (
           <div
             key={i}
-            className={`flex-1 rounded-full ${played ? "bg-accent" : "bg-border"}`}
-            style={{ height: `${Math.max(10, p * 100)}%` }}
+            className={`min-h-[3px] flex-1 rounded-full transition-colors ${color}`}
+            style={{ height: `${Math.max(12, p * 100)}%` }}
           />
         );
       })}

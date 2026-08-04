@@ -433,6 +433,57 @@ export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetT
 }
 
 /**
+ * Pulls one version out of a track into a brand new track of its own —
+ * the reverse of mergeTrackIntoVersionAction. The new track keeps the same
+ * album, is appended at the end, and the version becomes its sole (and
+ * therefore default) version. If the extracted version was the source
+ * track's default, the next-lowest remaining version is promoted. No-op if
+ * the track only has one version (there'd be nothing left behind).
+ */
+export async function splitVersionIntoTrackAction(versionId: string) {
+  const version = await prisma.trackVersion.findUniqueOrThrow({
+    where: { id: versionId },
+    include: { track: { include: { versions: { orderBy: { versionNumber: "asc" } } } } },
+  });
+  const source = version.track;
+  if (source.versions.length <= 1) return;
+
+  const remaining = source.versions.filter((v) => v.id !== versionId);
+
+  await prisma.$transaction(async (tx) => {
+    const position = await tx.track.count({ where: { albumId: source.albumId } });
+    const newTrack = await tx.track.create({
+      data: {
+        title: version.label ?? version.originalFilename ?? source.title,
+        albumId: source.albumId,
+        position,
+      },
+    });
+
+    await tx.trackVersion.update({
+      where: { id: versionId },
+      data: { trackId: newTrack.id, versionNumber: 1, isDefault: true },
+    });
+
+    if (version.isDefault && remaining.length > 0) {
+      await tx.trackVersion.update({ where: { id: remaining[0].id }, data: { isDefault: true } });
+    }
+
+    // Sequential and in ascending order: each new number was just vacated by
+    // the previous write (or is a no-op), so this never collides with the
+    // @@unique([trackId, versionNumber]) constraint mid-way through.
+    for (let i = 0; i < remaining.length; i++) {
+      await tx.trackVersion.update({ where: { id: remaining[i].id }, data: { versionNumber: i + 1 } });
+    }
+  });
+
+  revalidatePath("/tracks");
+  revalidatePath("/");
+  revalidatePath(`/tracks/${source.id}`);
+  if (source.albumId) revalidatePath(`/albums/${source.albumId}`);
+}
+
+/**
  * Moves a track to a (possibly different) album and places it at a specific
  * position there — used by the /map page, where dragging a track onto an
  * album appends it, and dragging it onto another track inserts it right

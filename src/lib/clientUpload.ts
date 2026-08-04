@@ -33,7 +33,7 @@ export function probeDurationClient(file: File): Promise<number | undefined> {
   });
 }
 
-const WAVEFORM_BUCKETS = 80;
+const WAVEFORM_BUCKETS = 150;
 
 // Downsamples decoded channel data into a fixed number of 0..1 amplitude
 // buckets (max absolute sample per bucket, across all channels, normalized
