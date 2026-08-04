@@ -109,13 +109,22 @@ measured value and capped at ±12dB. A limiter on the output (a Web Audio
 `DynamicsCompressorNode` tuned aggressively, engaged only while Normalize is
 on) catches transient peaks that boosted-but-still-dynamic material can push
 past 0dBFS, which the gain adjustment alone can't prevent since LUFS is an
-average, not a peak measurement. This needs the Web Audio API
-(`src/components/player/PlayerProvider.tsx`), which only takes effect for
-audio fetched in CORS mode — enabling it the first time reloads the current
-track under CORS and, if the storage host doesn't support that, normalization
-turns itself back off with an inline message rather than leaving playback
-silently broken. This whole path is opt-in and only touched once you turn
-the toggle on, so it can't affect default playback.
+average, not a peak measurement.
+
+This needs the Web Audio API (`src/components/player/PlayerProvider.tsx`),
+which only takes effect for audio fetched in CORS mode. The player actually
+holds **two** `<audio>` elements: a raw one used for all normal playback, and
+a second one that's the only one ever wired into the Web Audio graph. This is
+because `AudioContext.createMediaElementSource()` permanently reroutes an
+element's output the first time it's called on it — there's no way to
+disconnect it later, so even turning Normalize back off wouldn't restore
+that element's default output path. Keeping the two separate means default
+playback (Normalize off) never touches Web Audio at all, and can't be
+affected by it. Switching the toggle hands off position/play state from
+whichever element was live to the other one. If the storage host doesn't
+send permissive-enough CORS headers for the processed element to load,
+normalization turns itself back off with an inline message rather than
+leaving playback silently broken.
 
 ## Reordering and merging tracks
 

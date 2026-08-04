@@ -59,32 +59,38 @@ const initialState: PlayerState = {
 };
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  // When switching versions of the same track mid-playback, this carries
-  // the position (and play/pause state) across the src swap so switching
-  // feels like changing "take" rather than starting a new song. Also reused
-  // when we reload the current track to enable CORS for normalization.
+  // Two separate elements, only one "live" at a time (picked by `normalize`):
+  // rawAudioRef never touches the Web Audio API, so default playback is
+  // *guaranteed* bit-for-bit untouched. processedAudioRef is the only one
+  // ever routed through Web Audio (for the gain + limiter normalization
+  // needs), permanently, from the moment normalize is first switched on —
+  // that routing can't be undone on a given element, which is exactly why
+  // it's kept off the raw one entirely rather than shared.
+  const rawAudioRef = useRef<HTMLAudioElement>(null);
+  const processedAudioRef = useRef<HTMLAudioElement>(null);
+  // Carries position/play-state across a src swap — switching versions,
+  // or switching which of the two elements above is live — so that feels
+  // like changing "take" rather than restarting.
   const resumeRef = useRef<ResumePoint | null>(null);
 
-  // Loudness normalization runs through the Web Audio API (needed to boost
-  // quiet tracks — HTMLMediaElement.volume can only attenuate, never exceed
-  // 100%). Routing the element through Web Audio requires the resource to
-  // be fetched in CORS mode, so this is all set up lazily, only the first
-  // time normalize is switched on, so default playback is never at risk of
-  // this — see toggleNormalize.
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const limiterNodeRef = useRef<DynamicsCompressorNode | null>(null);
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const corsEnabledRef = useRef(false);
-  const awaitingCorsReloadRef = useRef(false);
 
   const [state, setState] = useState<PlayerState>(initialState);
   const [normalize, setNormalize] = useState(false);
   const [normalizeError, setNormalizeError] = useState<string | null>(null);
+  // Lets event handlers (wired up once) know which element is *currently*
+  // live without re-subscribing every time normalize toggles.
+  const normalizeRef = useRef(normalize);
+  useEffect(() => {
+    normalizeRef.current = normalize;
+  }, [normalize]);
 
   const activeVersion =
     state.track?.versions.find((v) => v.id === state.activeVersionId) ?? null;
+  const liveAudioRef = normalize ? processedAudioRef : rawAudioRef;
 
   const playTrack = useCallback((track: PlayerTrack, versionId?: string) => {
     const version =
@@ -104,31 +110,37 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const switchVersion = useCallback((versionId: string) => {
-    const audio = audioRef.current;
-    setState((s) => {
-      if (!audio || s.activeVersionId === versionId) return s;
-      resumeRef.current = { time: audio.currentTime, playing: !audio.paused };
-      return { ...s, activeVersionId: versionId, isLoading: true };
-    });
-  }, []);
+  const switchVersion = useCallback(
+    (versionId: string) => {
+      const audio = liveAudioRef.current;
+      setState((s) => {
+        if (!audio || s.activeVersionId === versionId) return s;
+        resumeRef.current = { time: audio.currentTime, playing: !audio.paused };
+        return { ...s, activeVersionId: versionId, isLoading: true };
+      });
+    },
+    [liveAudioRef],
+  );
 
   const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = liveAudioRef.current;
     if (!audio) return;
     if (audio.paused) audio.play().catch(() => {});
     else audio.pause();
-  }, []);
+  }, [liveAudioRef]);
 
-  const seek = useCallback((seconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = seconds;
-    setState((s) => ({ ...s, currentTime: seconds }));
-  }, []);
+  const seek = useCallback(
+    (seconds: number) => {
+      const audio = liveAudioRef.current;
+      if (!audio) return;
+      audio.currentTime = seconds;
+      setState((s) => ({ ...s, currentTime: seconds }));
+    },
+    [liveAudioRef],
+  );
 
   const ensureAudioGraph = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = processedAudioRef.current;
     if (!audio || sourceNodeRef.current) return;
     const AudioContextCtor =
       window.AudioContext ||
@@ -156,53 +168,42 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     sourceNodeRef.current = source;
   }, []);
 
+  // Hand off from whichever element is live to the other one. The src-load
+  // effect below (keyed on `normalize`) actually loads the new element;
+  // this just captures where to resume from and pauses the outgoing one.
   const toggleNormalize = useCallback(() => {
     setNormalize((wasOn) => {
       const turningOn = !wasOn;
       setNormalizeError(null);
 
-      if (turningOn) {
-        ensureAudioGraph();
-        audioCtxRef.current?.resume();
-
-        // First activation: the element needs to be reloaded in CORS mode
-        // for Web Audio gain to actually affect cross-origin (Blob) audio.
-        const audio = audioRef.current;
-        if (audio && !corsEnabledRef.current) {
-          corsEnabledRef.current = true;
-          resumeRef.current = { time: audio.currentTime, playing: !audio.paused };
-          awaitingCorsReloadRef.current = true;
-          audio.crossOrigin = "anonymous";
-          audio.load();
-        }
+      const fromAudio = wasOn ? processedAudioRef.current : rawAudioRef.current;
+      if (fromAudio) {
+        resumeRef.current = { time: fromAudio.currentTime, playing: !fromAudio.paused };
+        fromAudio.pause();
       }
+      if (turningOn) ensureAudioGraph();
+      audioCtxRef.current?.resume();
 
       return turningOn;
     });
   }, [ensureAudioGraph]);
 
-  // Swap the audio source whenever the active version changes. Deliberately
-  // depends on just the URL, not the whole (freshly-derived-every-render)
-  // activeVersion object, so this doesn't reload the audio on unrelated
-  // state updates (e.g. timeupdate).
+  // Load the active version into whichever element is currently live —
+  // reruns on a version change, and also whenever `normalize` flips (which
+  // is exactly when "currently live" changes to the other element).
   useEffect(() => {
-    const audio = audioRef.current;
+    const audio = liveAudioRef.current;
     if (!audio || !activeVersion) return;
     audio.src = activeVersion.audioUrl;
     audio.load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVersion?.audioUrl]);
+  }, [activeVersion?.audioUrl, normalize, liveAudioRef]);
 
   // Keep the normalization gain in sync with the toggle and whichever
   // version is currently playing (different versions can have different
-  // measured loudness). The limiter's threshold rides along too — parked at
-  // 0dB (effectively a no-op) when normalization is off, so turning it off
-  // sounds identical to a track that was never routed through this graph,
-  // rather than staying subtly limited near its own natural peaks.
+  // measured loudness).
   useEffect(() => {
     const gain = gainNodeRef.current;
-    const limiter = limiterNodeRef.current;
-    if (limiter) limiter.threshold.value = normalize ? -1 : 0;
     if (!gain) return;
     if (normalize && activeVersion?.lufs != null) {
       const deltaDb = Math.max(
@@ -215,59 +216,77 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [normalize, activeVersion?.lufs]);
 
-  // Wire up the audio element's events once; the loadedmetadata handler
-  // reads resumeRef fresh each time so it always has the latest resume point.
+  // Wire up both elements' events with the same logic; whichever one isn't
+  // currently "live" just sits idle so its events are inert in practice,
+  // but we still guard on liveness to be explicit about intent.
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const isLive = (audio: HTMLAudioElement) =>
+      audio === (normalizeRef.current ? processedAudioRef.current : rawAudioRef.current);
 
-    const onLoadedMetadata = () => {
-      awaitingCorsReloadRef.current = false;
-      const resume = resumeRef.current;
-      let shouldPlay = true;
-      if (resume) {
-        audio.currentTime = Math.min(resume.time, audio.duration || resume.time);
-        shouldPlay = resume.playing;
-        resumeRef.current = null;
-      }
-      setState((s) => ({ ...s, duration: audio.duration || 0, isLoading: false }));
-      if (shouldPlay) audio.play().catch(() => {});
-      else audio.pause();
-    };
-    const onTimeUpdate = () =>
-      setState((s) => ({ ...s, currentTime: audio.currentTime }));
-    const onPlay = () => setState((s) => ({ ...s, isPlaying: true }));
-    const onPause = () => setState((s) => ({ ...s, isPlaying: false }));
-    const onWaiting = () => setState((s) => ({ ...s, isLoading: true }));
-    const onPlaying = () => setState((s) => ({ ...s, isLoading: false }));
-    // If the CORS-mode reload (triggered by turning normalization on)
-    // fails — the storage host doesn't send permissive CORS headers — fall
-    // back to plain playback rather than leaving the track silently broken.
-    const onError = () => {
-      if (!awaitingCorsReloadRef.current) return;
-      awaitingCorsReloadRef.current = false;
-      corsEnabledRef.current = false;
-      audio.crossOrigin = null;
-      setNormalize(false);
-      setNormalizeError("Volume normalization isn't supported for this track's storage.");
-      audio.load();
-    };
+    function wire(audio: HTMLAudioElement | null, isProcessed: boolean) {
+      if (!audio) return () => {};
 
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("playing", onPlaying);
-    audio.addEventListener("error", onError);
+      const onLoadedMetadata = () => {
+        if (!isLive(audio)) return;
+        const resume = resumeRef.current;
+        let shouldPlay = true;
+        if (resume) {
+          audio.currentTime = Math.min(resume.time, audio.duration || resume.time);
+          shouldPlay = resume.playing;
+          resumeRef.current = null;
+        }
+        setState((s) => ({ ...s, duration: audio.duration || 0, isLoading: false }));
+        if (shouldPlay) audio.play().catch(() => {});
+        else audio.pause();
+      };
+      const onTimeUpdate = () => {
+        if (isLive(audio)) setState((s) => ({ ...s, currentTime: audio.currentTime }));
+      };
+      const onPlay = () => {
+        if (isLive(audio)) setState((s) => ({ ...s, isPlaying: true }));
+      };
+      const onPause = () => {
+        if (isLive(audio)) setState((s) => ({ ...s, isPlaying: false }));
+      };
+      const onWaiting = () => {
+        if (isLive(audio)) setState((s) => ({ ...s, isLoading: true }));
+      };
+      const onPlaying = () => {
+        if (isLive(audio)) setState((s) => ({ ...s, isLoading: false }));
+      };
+      // The processed element is the only one ever fetched in CORS mode; if
+      // that fails (the storage host doesn't send permissive CORS headers),
+      // fall back to the raw element rather than leaving playback silently
+      // broken.
+      const onError = () => {
+        if (!isProcessed || !isLive(audio)) return;
+        setNormalize(false);
+        setNormalizeError("Volume normalization isn't supported for this track's storage.");
+      };
+
+      audio.addEventListener("loadedmetadata", onLoadedMetadata);
+      audio.addEventListener("timeupdate", onTimeUpdate);
+      audio.addEventListener("play", onPlay);
+      audio.addEventListener("pause", onPause);
+      audio.addEventListener("waiting", onWaiting);
+      audio.addEventListener("playing", onPlaying);
+      audio.addEventListener("error", onError);
+      return () => {
+        audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+        audio.removeEventListener("timeupdate", onTimeUpdate);
+        audio.removeEventListener("play", onPlay);
+        audio.removeEventListener("pause", onPause);
+        audio.removeEventListener("waiting", onWaiting);
+        audio.removeEventListener("playing", onPlaying);
+        audio.removeEventListener("error", onError);
+      };
+    }
+
+    const cleanupRaw = wire(rawAudioRef.current, false);
+    const cleanupProcessed = wire(processedAudioRef.current, true);
     return () => {
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("playing", onPlaying);
-      audio.removeEventListener("error", onError);
+      cleanupRaw();
+      cleanupProcessed();
     };
   }, []);
 
@@ -286,7 +305,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <audio ref={audioRef} preload="auto" />
+      <audio ref={rawAudioRef} preload="auto" />
+      <audio ref={processedAudioRef} preload="none" crossOrigin="anonymous" />
     </PlayerContext.Provider>
   );
 }
