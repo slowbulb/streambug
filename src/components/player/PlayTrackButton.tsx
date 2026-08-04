@@ -31,6 +31,7 @@ export function PlayTrackButton({
   return (
     <button
       onClick={handleClick}
+      draggable={false}
       aria-label={isPlaying ? "Pause" : "Play"}
       className={`flex ${dimensions} shrink-0 items-center justify-center rounded-full border border-border text-foreground transition hover:border-accent hover:text-accent`}
     >

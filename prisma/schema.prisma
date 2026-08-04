@@ -41,18 +41,24 @@ model Track {
 // versionNumber is assigned automatically (1, 2, 3, ... per track) and
 // label is an optional nickname on top of that.
 model TrackVersion {
-  id            String   @id @default(cuid())
-  trackId       String
-  track         Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  versionNumber Int
-  label         String?
-  isDefault     Boolean  @default(false)
-  audioUrl      String
-  storageKey    String
-  mimeType      String
-  fileSize      Int
-  durationSec   Float?
-  lufs          Float?
+  id               String   @id @default(cuid())
+  trackId          String
+  track            Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  versionNumber    Int
+  label            String?
+  originalFilename String?
+  isDefault        Boolean  @default(false)
+  audioUrl         String
+  storageKey       String
+  mimeType         String
+  fileSize         Int
+  durationSec      Float?
+  lufs             Float?
+  // Precomputed amplitude buckets (0..1, ~80 of them) for a static waveform
+  // preview — measured client-side alongside LUFS, from the same decoded
+  // audio buffer, so there's no extra decode cost. Empty for versions
+  // uploaded before this existed.
+  waveformPeaks    Float[]
   createdAt     DateTime @default(now())
 
   lyrics LyricLine[]

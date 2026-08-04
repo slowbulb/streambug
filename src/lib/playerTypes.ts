@@ -4,9 +4,11 @@ export type PlayerVersion = {
   id: string;
   versionNumber: number;
   label: string | null;
+  originalFilename: string | null;
   audioUrl: string;
   durationSec: number | null;
   lufs: number | null;
+  waveformPeaks: number[];
   isDefault: boolean;
   lyrics: PlayerLyricLine[];
 };

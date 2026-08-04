@@ -126,6 +126,26 @@ send permissive-enough CORS headers for the processed element to load,
 normalization turns itself back off with an inline message rather than
 leaving playback silently broken.
 
+## Waveforms and version filenames
+
+Alongside LUFS, each upload also gets a waveform preview computed
+client-side (`analyzeAudioClient` in `src/lib/clientUpload.ts`) — the audio
+is only decoded once, and both measurements are derived from that same
+decoded buffer. The waveform is ~80 amplitude buckets (`TrackVersion.waveformPeaks`,
+max absolute sample per bucket, normalized), rendered as a bar chart
+(`src/components/Waveform.tsx`) rather than a canvas, since a rough preview
+is all that's needed here. It's shown for every version in a track's
+expanded version list, for the currently-playing track's row, and in place
+of the plain progress bar on the track page and in the bottom player bar —
+in all of those it doubles as a click-to-seek control once it's the version
+actually playing. Versions uploaded before this existed just have an empty
+`waveformPeaks` array and fall back to the plain range input.
+
+Each version also stores the original uploaded filename
+(`TrackVersion.originalFilename`), shown as a version's label when no
+custom nickname was given (`formatVersionLabel` in `src/lib/formatLufs.ts`)
+— useful for telling otherwise-similarly-named versions apart.
+
 ## Reordering and merging tracks
 
 - **Merge as a version**: drag one track directly onto another — on an

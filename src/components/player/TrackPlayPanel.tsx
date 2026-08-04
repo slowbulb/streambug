@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePlayer } from "@/components/player/PlayerProvider";
 import { SyncedLyrics } from "@/components/player/SyncedLyrics";
+import { Waveform } from "@/components/Waveform";
 import { PauseIcon, PlayIcon } from "@/components/player/icons";
 import { formatTime } from "@/lib/formatTime";
 import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
@@ -57,16 +58,25 @@ export function TrackPlayPanel({ track }: { track: PlayerTrack }) {
           )}
         </button>
         <div className="flex-1">
-          <input
-            type="range"
-            min={0}
-            max={displayDuration || 0}
-            step={0.1}
-            value={Math.min(displayTime, displayDuration || 0)}
-            disabled={!isLive}
-            onChange={(e) => isLive && player.seek(Number(e.target.value))}
-            className="h-1.5 w-full accent-accent disabled:opacity-50"
-          />
+          {viewing.waveformPeaks.length > 0 ? (
+            <Waveform
+              peaks={viewing.waveformPeaks}
+              progress={isLive && displayDuration > 0 ? displayTime / displayDuration : 0}
+              onSeek={isLive ? (fraction) => player.seek(fraction * displayDuration) : undefined}
+              height={32}
+            />
+          ) : (
+            <input
+              type="range"
+              min={0}
+              max={displayDuration || 0}
+              step={0.1}
+              value={Math.min(displayTime, displayDuration || 0)}
+              disabled={!isLive}
+              onChange={(e) => isLive && player.seek(Number(e.target.value))}
+              className="h-1.5 w-full accent-accent disabled:opacity-50"
+            />
+          )}
           <div className="mt-1 flex justify-between text-xs tabular-nums text-muted">
             <span>{formatTime(displayTime)}</span>
             <span>

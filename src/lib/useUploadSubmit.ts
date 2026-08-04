@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { measureLufsClient, probeDurationClient, uploadFileDirect } from "@/lib/clientUpload";
+import { analyzeAudioClient, probeDurationClient, uploadFileDirect } from "@/lib/clientUpload";
 
 type FileFieldConfig = {
   /** name of the <input type="file"> in the form */
@@ -51,8 +51,12 @@ export function useUploadSubmit(
       setIsUploading(true);
 
       if (fileField.probeLufs) {
-        const lufs = await measureLufsClient(file);
-        if (lufs !== undefined) formData.set("lufs", String(lufs));
+        formData.set("originalFilename", file.name);
+        const analysis = await analyzeAudioClient(file);
+        if (analysis.lufs !== undefined) formData.set("lufs", String(analysis.lufs));
+        if (analysis.waveformPeaks) {
+          formData.set("waveformPeaks", JSON.stringify(analysis.waveformPeaks));
+        }
       }
 
       if (hasBlob) {

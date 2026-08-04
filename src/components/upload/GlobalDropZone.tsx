@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { quickAddTrackAction } from "@/app/actions";
-import { measureLufsClient, probeDurationClient, uploadFileDirect } from "@/lib/clientUpload";
+import { analyzeAudioClient, probeDurationClient, uploadFileDirect } from "@/lib/clientUpload";
 import { titleFromFilename } from "@/lib/formatLufs";
 
 type UploadStatus = {
@@ -40,10 +40,14 @@ export function GlobalDropZone({ hasBlob }: { hasBlob: boolean }) {
       try {
         const formData = new FormData();
         formData.set("title", titleFromFilename(file.name));
+        formData.set("originalFilename", file.name);
         if (currentAlbumId) formData.set("albumId", currentAlbumId);
 
-        const lufs = await measureLufsClient(file);
-        if (lufs !== undefined) formData.set("lufs", String(lufs));
+        const analysis = await analyzeAudioClient(file);
+        if (analysis.lufs !== undefined) formData.set("lufs", String(analysis.lufs));
+        if (analysis.waveformPeaks) {
+          formData.set("waveformPeaks", JSON.stringify(analysis.waveformPeaks));
+        }
 
         if (hasBlob) {
           const duration = await probeDurationClient(file);

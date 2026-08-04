@@ -32,6 +32,8 @@ type ResolvedAudio = {
   fileSize: number;
   durationSec?: number;
   lufs?: number;
+  originalFilename?: string;
+  waveformPeaks: number[];
 };
 
 /**
@@ -44,6 +46,19 @@ async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> 
   // equivalent without shelling out to ffmpeg) — see clientUpload.ts.
   const lufsRaw = str(formData, "lufs");
   const lufs = lufsRaw ? Number(lufsRaw) : undefined;
+  const originalFilename = str(formData, "originalFilename") ?? undefined;
+  const waveformPeaksRaw = str(formData, "waveformPeaks");
+  let waveformPeaks: number[] = [];
+  if (waveformPeaksRaw) {
+    try {
+      const parsed = JSON.parse(waveformPeaksRaw);
+      if (Array.isArray(parsed) && parsed.every((n) => typeof n === "number")) {
+        waveformPeaks = parsed;
+      }
+    } catch {
+      // best-effort — leave waveformPeaks empty
+    }
+  }
 
   const preUploadedUrl = str(formData, "audioUrl");
   if (preUploadedUrl) {
@@ -57,6 +72,8 @@ async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> 
       fileSize: Number(str(formData, "fileSize") ?? "0"),
       durationSec: durationSec ? Number(durationSec) : undefined,
       lufs,
+      originalFilename,
+      waveformPeaks,
     };
   }
 
@@ -75,6 +92,8 @@ async function resolveUploadedAudio(formData: FormData): Promise<ResolvedAudio> 
     fileSize: audio.size,
     durationSec,
     lufs,
+    originalFilename: originalFilename ?? audio.name,
+    waveformPeaks,
   };
 }
 
@@ -167,10 +186,10 @@ async function createTrackRecord(formData: FormData) {
   const albumId = str(formData, "albumId");
   const label = str(formData, "label");
 
-  const [{ url, key, mimeType, fileSize, durationSec, lufs }, position] = await Promise.all([
-    resolveUploadedAudio(formData),
-    prisma.track.count({ where: { albumId } }),
-  ]);
+  const [
+    { url, key, mimeType, fileSize, durationSec, lufs, originalFilename, waveformPeaks },
+    position,
+  ] = await Promise.all([resolveUploadedAudio(formData), prisma.track.count({ where: { albumId } })]);
 
   const track = await prisma.track.create({
     data: {
@@ -181,6 +200,7 @@ async function createTrackRecord(formData: FormData) {
         create: {
           versionNumber: 1,
           label,
+          originalFilename,
           isDefault: true,
           audioUrl: url,
           storageKey: key,
@@ -188,6 +208,7 @@ async function createTrackRecord(formData: FormData) {
           fileSize,
           durationSec,
           lufs,
+          waveformPeaks,
         },
       },
     },
@@ -236,7 +257,10 @@ export async function updateTrackAction(trackId: string, formData: FormData) {
 export async function addVersionAction(trackId: string, formData: FormData) {
   const label = str(formData, "label");
 
-  const [{ url, key, mimeType, fileSize, durationSec, lufs }, existingCount] = await Promise.all([
+  const [
+    { url, key, mimeType, fileSize, durationSec, lufs, originalFilename, waveformPeaks },
+    existingCount,
+  ] = await Promise.all([
     resolveUploadedAudio(formData),
     prisma.trackVersion.count({ where: { trackId } }),
   ]);
@@ -246,6 +270,7 @@ export async function addVersionAction(trackId: string, formData: FormData) {
       trackId,
       versionNumber: existingCount + 1,
       label,
+      originalFilename,
       isDefault: existingCount === 0,
       audioUrl: url,
       storageKey: key,
@@ -253,6 +278,7 @@ export async function addVersionAction(trackId: string, formData: FormData) {
       fileSize,
       durationSec,
       lufs,
+      waveformPeaks,
     },
   });
 
@@ -371,6 +397,7 @@ export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetT
           trackId: targetTrackId,
           versionNumber: nextVersionNumber++,
           label: version.label ?? source.title,
+          originalFilename: version.originalFilename,
           isDefault: false,
           audioUrl: version.audioUrl,
           storageKey: version.storageKey,
@@ -378,6 +405,7 @@ export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetT
           fileSize: version.fileSize,
           durationSec: version.durationSec,
           lufs: version.lufs,
+          waveformPeaks: version.waveformPeaks,
         },
       });
       if (version.lyrics.length > 0) {

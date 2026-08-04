@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { Waveform } from "@/components/Waveform";
 import { formatTime } from "@/lib/formatTime";
 import { formatVersionLabel } from "@/lib/formatLufs";
 import { PauseIcon, PlayIcon } from "@/components/player/icons";
@@ -64,15 +65,25 @@ export function PlayerBar() {
           <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted">
             {formatTime(currentTime)}
           </span>
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            step={0.1}
-            value={Math.min(currentTime, duration || 0)}
-            onChange={(e) => seek(Number(e.target.value))}
-            className="h-1.5 flex-1 accent-accent"
-          />
+          {activeVersion.waveformPeaks.length > 0 ? (
+            <Waveform
+              peaks={activeVersion.waveformPeaks}
+              progress={duration > 0 ? currentTime / duration : 0}
+              onSeek={(fraction) => seek(fraction * duration)}
+              height={28}
+              className="flex-1"
+            />
+          ) : (
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              onChange={(e) => seek(Number(e.target.value))}
+              className="h-1.5 flex-1 accent-accent"
+            />
+          )}
           <span className="w-10 shrink-0 text-xs tabular-nums text-muted">
             {formatTime(duration)}
           </span>

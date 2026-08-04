@@ -33,14 +33,43 @@ export function probeDurationClient(file: File): Promise<number | undefined> {
   });
 }
 
-// Integrated loudness (LUFS, ITU-R BS.1770-4), measured client-side by fully
-// decoding the file with the Web Audio API and running a pure-JS gated
-// K-weighted measurement over the decoded samples. There's no server-side
-// equivalent that doesn't require shelling out to ffmpeg, so this always
-// runs client-side regardless of which upload path (Blob vs local-disk) is
-// used. Best-effort: returns undefined for formats the browser can't decode,
-// or effectively-silent audio.
-export async function measureLufsClient(file: File): Promise<number | undefined> {
+const WAVEFORM_BUCKETS = 80;
+
+// Downsamples decoded channel data into a fixed number of 0..1 amplitude
+// buckets (max absolute sample per bucket, across all channels, normalized
+// against the loudest bucket) for a static waveform preview.
+function computeWaveformPeaks(channels: Float32Array[]): number[] {
+  const length = channels[0]?.length ?? 0;
+  if (length === 0) return [];
+
+  const bucketSize = Math.max(1, Math.floor(length / WAVEFORM_BUCKETS));
+  const peaks: number[] = [];
+  for (let b = 0; b < WAVEFORM_BUCKETS; b++) {
+    const start = b * bucketSize;
+    const end = b === WAVEFORM_BUCKETS - 1 ? length : start + bucketSize;
+    let max = 0;
+    for (let i = start; i < end; i++) {
+      for (const channel of channels) {
+        const v = Math.abs(channel[i]);
+        if (v > max) max = v;
+      }
+    }
+    peaks.push(max);
+  }
+
+  const overallMax = Math.max(...peaks, 1e-6);
+  return peaks.map((p) => Math.min(1, p / overallMax));
+}
+
+export type AudioAnalysis = { lufs?: number; waveformPeaks?: number[] };
+
+// Integrated loudness (LUFS, ITU-R BS.1770-4) and a waveform preview, both
+// measured client-side from a single decode of the file with the Web Audio
+// API — there's no server-side equivalent that doesn't require shelling out
+// to ffmpeg, so this always runs client-side regardless of which upload path
+// (Blob vs local-disk) is used. Best-effort: returns an empty result for
+// formats the browser can't decode, or effectively-silent audio.
+export async function analyzeAudioClient(file: File): Promise<AudioAnalysis> {
   try {
     const AudioContextCtor =
       window.AudioContext ||
@@ -53,11 +82,14 @@ export async function measureLufsClient(file: File): Promise<number | undefined>
         audioBuffer.getChannelData(i),
       );
       const value = lufs(channels, { fs: audioBuffer.sampleRate });
-      return value === null ? undefined : value;
+      return {
+        lufs: value === null ? undefined : value,
+        waveformPeaks: computeWaveformPeaks(channels),
+      };
     } finally {
       await audioCtx.close();
     }
   } catch {
-    return undefined;
+    return {};
   }
 }

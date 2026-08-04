@@ -3,8 +3,13 @@ export function formatLufs(value: number | null | undefined): string | null {
   return `${value.toFixed(1)} LUFS`;
 }
 
-export function formatVersionLabel(version: { versionNumber: number; label: string | null }): string {
-  return version.label ? `V${version.versionNumber} — ${version.label}` : `V${version.versionNumber}`;
+export function formatVersionLabel(version: {
+  versionNumber: number;
+  label: string | null;
+  originalFilename?: string | null;
+}): string {
+  const name = version.label ?? version.originalFilename;
+  return name ? `V${version.versionNumber} — ${name}` : `V${version.versionNumber}`;
 }
 
 // Derives a reasonable track title from an uploaded file's name:
