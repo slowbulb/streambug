@@ -42,21 +42,33 @@ export async function getAlbumWithTracks(albumId: string) {
   return { album, tracks };
 }
 
+// Albums include their first track (by position) so the rack can offer a
+// "play album" button without a second round-trip per album.
+const albumInclude = {
+  _count: { select: { tracks: true } },
+  tracks: {
+    orderBy: [{ position: "asc" as const }, { createdAt: "asc" as const }],
+    take: 1,
+    include: trackInclude,
+  },
+};
+
 export async function getRecentAlbums(limit: number) {
   return prisma.album.findMany({
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { _count: { select: { tracks: true } } },
+    include: albumInclude,
   });
 }
 
 export async function getAllAlbums() {
   return prisma.album.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { tracks: true } } },
+    include: albumInclude,
   });
 }
 
+export type AlbumListItem = Awaited<ReturnType<typeof getAllAlbums>>[number];
 export type TrackListItem = Awaited<ReturnType<typeof getRecentTracks>>[number];
 
 // Lean shape for the /map page — just enough to lay out and reorganize the
