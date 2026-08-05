@@ -178,17 +178,38 @@ custom nickname was given (`formatVersionLabel` in `src/lib/formatLufs.ts`)
   `src/components/CassetteTrackRow.tsx`). No-op if the track only has one
   version.
 
-## Album page tracklist
+## Retro cassette theme
 
-An album's tracklist is styled after the back of a cassette J-card —
-monospace type, numbered tracks, a dotted leader between title and running
-time, a "Side A" tag — rather than following the rest of the app's theme
-(`src/components/ReorderableTrackList.tsx`, `src/components/CassetteTrackRow.tsx`).
-It's a deliberate, deliberately-not-theme-following skin scoped to this one
-component (hardcoded paper/ink colors rather than the `--background`/
-`--foreground` variables, so it looks the same in light or dark mode), while
-the merge/reorder/split gestures above and version-switching all work the
-same as anywhere else in the app.
+The whole app is themed after cassette tapes and their J-cards: a warm
+paper/ink palette and monospace type sitewide (`src/app/globals.css` —
+since nearly every component already used the semantic `background` /
+`surface` / `foreground` / `muted` / `border` / `accent` CSS variables
+rather than hardcoded colors, retinting those few variables reskins the
+whole app in one place). The palette is intentionally the same shape in
+light and dark mode (warm paper vs. a dark cassette-shell brown, never a
+plain white/black inversion), since that's true of a physical tape too.
+
+A few components lean further into the theme with dedicated, deliberately
+non-theme-following skeuomorphic pieces:
+
+- **Album covers** (`src/components/CassetteCover.tsx`, used by
+  `AlbumRow.tsx` and the album page) render the cover art inside a
+  stylized cassette shell — a label window holding the art, two reels and
+  a tape strand below it — rather than a plain square thumbnail.
+- **The bottom player bar** (`src/components/player/PlayerBar.tsx`) has a
+  tape-window strip across the top with two reels (`CassetteReel.tsx`)
+  connected by a tape strand; the reels spin (CSS animation, paused via
+  `animation-play-state` when playback is paused) while a track is
+  playing.
+- **An album's tracklist** is styled after the back of a cassette J-card —
+  monospace type, numbered tracks, a dotted leader between title and
+  running time, a "Side A" tag
+  (`src/components/ReorderableTrackList.tsx`,
+  `src/components/CassetteTrackRow.tsx`) — on a hardcoded cream/ink
+  palette rather than the theme variables, so it reads as a printed card
+  sitting on the page regardless of the variables above. All the
+  merge/reorder/split gestures and version-switching still work exactly
+  the same, just re-skinned.
 
 The "All tracks" page only supports merging (and splitting), since there's
 no per-album order to reorder within there.

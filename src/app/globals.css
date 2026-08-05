@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
+/* Retro cassette palette: warm paper/ink throughout, in both modes — this
+   app is meant to look like a tape deck and its J-cards, not to invert to a
+   neutral black-on-white dark mode like a typical app would. */
 :root {
-  --background: #f7f7f8;
-  --surface: #ffffff;
-  --foreground: #18181b;
-  --muted: #71717a;
-  --border: #e4e4e7;
-  --accent: #6d28d9;
-  --accent-foreground: #ffffff;
+  --background: #ddd0ae;
+  --surface: #f4ecd8;
+  --foreground: #3a3226;
+  --muted: #8a7a5c;
+  --border: #b8a878;
+  --accent: #b3312c;
+  --accent-foreground: #f4ecd8;
 }
 
 @theme inline {
@@ -22,13 +25,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0c0c0e;
-    --surface: #17171a;
-    --foreground: #f4f4f5;
-    --muted: #a1a1aa;
-    --border: #2a2a2e;
-    --accent: #a78bfa;
-    --accent-foreground: #1a1033;
+    --background: #171310;
+    --surface: #241d16;
+    --foreground: #e8dcc0;
+    --muted: #a08e68;
+    --border: #3a3226;
+    --accent: #e0655f;
+    --accent-foreground: #171310;
   }
 }
 
@@ -36,10 +39,15 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
-    sans-serif;
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 audio::-webkit-media-controls-panel {
   background-color: var(--surface);
+}
+
+@keyframes cassette-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

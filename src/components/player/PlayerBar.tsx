@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { CassetteReel } from "@/components/CassetteReel";
 import { Waveform } from "@/components/Waveform";
 import { formatTime } from "@/lib/formatTime";
 import { formatVersionLabel } from "@/lib/formatLufs";
@@ -26,7 +27,12 @@ export function PlayerBar() {
   if (!track || !activeVersion) return null;
 
   return (
-    <div className="sticky bottom-0 z-20 border-t border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+    <div className="sticky bottom-0 z-20 border-t-2 border-foreground bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+      <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 pt-2">
+        <CassetteReel spinning={isPlaying} className="h-5 w-5" />
+        <div className="h-px flex-1 bg-[#5a4f42]/50" />
+        <CassetteReel spinning={isPlaying} className="h-5 w-5" />
+      </div>
       {normalizeError && (
         <p className="mx-auto max-w-5xl px-4 pt-2 text-xs text-red-600 dark:text-red-400">
           {normalizeError}

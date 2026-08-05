@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteAlbumAction } from "@/app/actions";
+import { CassetteCover } from "@/components/CassetteCover";
 import { DeleteButton } from "@/components/DeleteButton";
 import { ReorderableTrackList } from "@/components/ReorderableTrackList";
 import { getAlbumWithTracks } from "@/lib/queries";
@@ -14,13 +15,8 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="aspect-square w-32 shrink-0 overflow-hidden rounded-lg border border-border bg-surface sm:w-40">
-          {album.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={album.coverUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-4xl">🎵</div>
-          )}
+        <div className="w-44 shrink-0 sm:w-56">
+          <CassetteCover coverUrl={album.coverUrl} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <h1 className="text-2xl font-semibold">{album.title}</h1>
