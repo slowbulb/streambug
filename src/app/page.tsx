@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlbumRow } from "@/components/AlbumRow";
+import { AlbumRack } from "@/components/AlbumRack";
 import { TrackRow } from "@/components/TrackRow";
 import { getRecentAlbums, getRecentTracks } from "@/lib/queries";
 
@@ -42,11 +42,7 @@ export default async function Home() {
             .
           </p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {albums.map((album) => (
-              <AlbumRow key={album.id} album={album} />
-            ))}
-          </div>
+          <AlbumRack albums={albums} />
         )}
       </section>
 

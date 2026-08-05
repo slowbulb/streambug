@@ -192,10 +192,14 @@ plain white/black inversion), since that's true of a physical tape too.
 A few components lean further into the theme with dedicated, deliberately
 non-theme-following skeuomorphic pieces:
 
-- **Album covers** (`src/components/CassetteCover.tsx`, used by
-  `AlbumRow.tsx` and the album page) render the cover art inside a
-  stylized cassette shell — a label window holding the art, two reels and
-  a tape strand below it — rather than a plain square thumbnail.
+- **Album covers** (`src/components/CassetteCover.tsx`) render the cover
+  art inside a stylized cassette shell — a label window holding the art,
+  two reels and a tape strand below it — rather than a plain square
+  thumbnail.
+- **Album listings** (home page and `/albums`,
+  `src/components/AlbumRack.tsx`) show albums as cassettes standing in a
+  rack: a grid of cases on a dark wood-toned shelf background instead of
+  a list of rows.
 - **The bottom player bar** (`src/components/player/PlayerBar.tsx`) has a
   tape-window strip across the top with two reels (`CassetteReel.tsx`)
   connected by a tape strand; the reels spin (CSS animation, paused via

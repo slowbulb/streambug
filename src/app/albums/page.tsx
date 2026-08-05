@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlbumRow } from "@/components/AlbumRow";
+import { AlbumRack } from "@/components/AlbumRack";
 import { getAllAlbums } from "@/lib/queries";
 
 export default async function AlbumsPage() {
@@ -20,11 +20,7 @@ export default async function AlbumsPage() {
       {albums.length === 0 ? (
         <p className="text-sm text-muted">No albums yet.</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {albums.map((album) => (
-            <AlbumRow key={album.id} album={album} />
-          ))}
-        </div>
+        <AlbumRack albums={albums} />
       )}
     </div>
   );
