@@ -2,20 +2,26 @@
 
 import { useState, useTransition } from "react";
 import { mergeTrackIntoVersionAction, moveTrackAction } from "@/app/actions";
-import { TrackRow } from "@/components/TrackRow";
+import { CassetteTrackRow } from "@/components/CassetteTrackRow";
 import type { TrackListItem } from "@/lib/queries";
 
 /**
  * Drag a track directly onto another to merge it in as a new version of
  * that track. Drag it into the gap between two tracks (or before the first
  * / after the last) to reorder instead — the gap only appears as a distinct
- * drop target while a drag is in progress.
+ * drop target while a drag is in progress. Styled like the back of a
+ * cassette J-card's printed tracklist (CassetteTrackRow) — a deliberately
+ * different skin from the rest of the app, scoped to this component.
  */
 export function ReorderableTrackList({
   albumId,
+  albumTitle,
+  albumArtist,
   tracks,
 }: {
   albumId: string;
+  albumTitle: string;
+  albumArtist?: string | null;
   tracks: TrackListItem[];
 }) {
   const [order, setOrder] = useState(tracks);
@@ -65,7 +71,19 @@ export function ReorderableTrackList({
   }
 
   return (
-    <div className="flex flex-col">
+    <div
+      className="rounded-sm border border-[#c9bb95] bg-[#f4ecd8] p-4 shadow-[0_2px_14px_rgba(0,0,0,0.18)] font-[family-name:var(--font-geist-mono)] text-[13px] text-[#3a3226]"
+    >
+      <div className="mb-2 flex items-baseline justify-between border-b-2 border-[#3a3226] pb-1.5">
+        <span className="truncate font-bold uppercase tracking-wide">
+          {albumArtist ? `${albumArtist} — ` : ""}
+          {albumTitle}
+        </span>
+        <span className="shrink-0 pl-3 text-[11px] font-bold uppercase tracking-widest text-[#b3312c]">
+          Side A
+        </span>
+      </div>
+
       <Gap
         id="start"
         isOver={overGapId === "start"}
@@ -76,11 +94,11 @@ export function ReorderableTrackList({
       />
       {order.map((track, i) => (
         <div key={track.id}>
-          <TrackRow
+          <CassetteTrackRow
             track={track}
-            showAlbum={false}
+            index={i}
             isDragOver={overTrackId === track.id}
-            dropHint="Drop to add as a version"
+            dropHint="drop to add as a version"
             dragProps={{
               draggable: true,
               onDragStart: (e) => {
@@ -120,8 +138,23 @@ export function ReorderableTrackList({
           />
         </div>
       ))}
+
+      <p className="mt-3 border-t border-[#8a7a5c]/25 pt-2 text-[10px] uppercase tracking-widest text-[#8a7a5c]">
+        {order.length} track{order.length === 1 ? "" : "s"} · total{" "}
+        {formatTotalTime(order)}
+      </p>
     </div>
   );
+}
+
+function formatTotalTime(tracks: TrackListItem[]): string {
+  const totalSec = tracks.reduce((sum, t) => {
+    const v = t.versions.find((v) => v.isDefault) ?? t.versions[0];
+    return sum + (v?.durationSec ?? 0);
+  }, 0);
+  const min = Math.floor(totalSec / 60);
+  const sec = Math.round(totalSec % 60);
+  return `${min}:${String(sec).padStart(2, "0")}`;
 }
 
 /** Drop zone between (or before/after) track rows, dedicated to reordering. */
@@ -139,7 +172,7 @@ function Gap({
   onDragLeave: () => void;
   onDrop: () => void;
 }) {
-  if (!isDragging) return <div className="h-2" />;
+  if (!isDragging) return null;
 
   return (
     <div
@@ -153,15 +186,16 @@ function Gap({
         e.preventDefault();
         onDrop();
       }}
-      className="flex items-center justify-center py-1"
+      className="flex items-center justify-center"
+      style={{ height: isOver ? 22 : 8 }}
     >
-      {isOver ? (
-        <span className="w-full rounded border border-dashed border-accent bg-accent/10 py-1 text-center text-[11px] font-medium text-accent">
-          Drop to reorder here
-        </span>
-      ) : (
-        <div className="h-1 w-full" />
-      )}
+      <span
+        className={`w-full text-center text-[10px] uppercase tracking-widest transition-colors ${
+          isOver ? "text-[#b3312c]" : "text-transparent"
+        }`}
+      >
+        {isOver ? "· · · drop to reorder · · ·" : "·"}
+      </span>
     </div>
   );
 }

@@ -175,7 +175,20 @@ custom nickname was given (`formatVersionLabel` in `src/lib/formatLufs.ts`)
   track it came from, the next remaining version is promoted
   (`splitVersionIntoTrackAction` in `src/app/actions.ts`,
   `src/components/VersionDragZone.tsx`, draggable version rows in
-  `src/components/TrackRow.tsx`). No-op if the track only has one version.
+  `src/components/CassetteTrackRow.tsx`). No-op if the track only has one
+  version.
+
+## Album page tracklist
+
+An album's tracklist is styled after the back of a cassette J-card —
+monospace type, numbered tracks, a dotted leader between title and running
+time, a "Side A" tag — rather than following the rest of the app's theme
+(`src/components/ReorderableTrackList.tsx`, `src/components/CassetteTrackRow.tsx`).
+It's a deliberate, deliberately-not-theme-following skin scoped to this one
+component (hardcoded paper/ink colors rather than the `--background`/
+`--foreground` variables, so it looks the same in light or dark mode), while
+the merge/reorder/split gestures above and version-switching all work the
+same as anywhere else in the app.
 
 The "All tracks" page only supports merging (and splitting), since there's
 no per-album order to reorder within there.

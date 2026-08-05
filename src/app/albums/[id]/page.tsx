@@ -58,7 +58,12 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
             Drag a track onto another to add it as a version, or into the gap between tracks to
             reorder.
           </p>
-          <ReorderableTrackList albumId={album.id} tracks={tracks} />
+          <ReorderableTrackList
+            albumId={album.id}
+            albumTitle={album.title}
+            albumArtist={album.artist}
+            tracks={tracks}
+          />
         </>
       )}
     </div>
