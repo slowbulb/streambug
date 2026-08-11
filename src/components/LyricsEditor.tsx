@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updatePlainLyricsAction } from "@/app/actions";
+import { useIsOwner } from "@/components/AuthProvider";
 
 /**
  * Inline paste-and-save lyrics box, not time-synced — just plain text,
@@ -15,10 +16,19 @@ export function LyricsEditor({
   trackId: string;
   initialText: string | null;
 }) {
+  const isOwner = useIsOwner();
   const [savedText, setSavedText] = useState(initialText);
   const [editing, setEditing] = useState(!initialText);
   const [draft, setDraft] = useState(initialText ?? "");
   const [isPending, startTransition] = useTransition();
+
+  if (!isOwner) {
+    return savedText ? (
+      <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap text-sm">{savedText}</pre>
+    ) : (
+      <p className="text-sm text-muted">No lyrics yet.</p>
+    );
+  }
 
   function handleSave() {
     const trimmed = draft.trim();

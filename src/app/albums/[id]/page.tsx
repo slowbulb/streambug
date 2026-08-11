@@ -4,11 +4,12 @@ import { deleteAlbumAction } from "@/app/actions";
 import { CassetteCover } from "@/components/CassetteCover";
 import { DeleteButton } from "@/components/DeleteButton";
 import { ReorderableTrackList } from "@/components/ReorderableTrackList";
+import { isOwnerSession } from "@/lib/auth";
 import { getAlbumWithTracks } from "@/lib/queries";
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const result = await getAlbumWithTracks(id);
+  const [result, isOwner] = await Promise.all([getAlbumWithTracks(id), isOwnerSession()]);
   if (!result) notFound();
   const { album, tracks } = result;
 
@@ -25,24 +26,26 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
           <p className="text-xs text-muted">
             {tracks.length} track{tracks.length === 1 ? "" : "s"}
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Link
-              href={`/tracks/new?albumId=${album.id}`}
-              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:opacity-90"
-            >
-              Add track
-            </Link>
-            <Link
-              href={`/albums/${album.id}/edit`}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
-            >
-              Edit
-            </Link>
-            <DeleteButton
-              action={deleteAlbumAction.bind(null, album.id)}
-              confirmMessage={`Delete "${album.title}"? Its tracks won't be deleted, just moved out of this album.`}
-            />
-          </div>
+          {isOwner && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Link
+                href={`/tracks/new?albumId=${album.id}`}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:opacity-90"
+              >
+                Add track
+              </Link>
+              <Link
+                href={`/albums/${album.id}/edit`}
+                className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
+              >
+                Edit
+              </Link>
+              <DeleteButton
+                action={deleteAlbumAction.bind(null, album.id)}
+                confirmMessage={`Delete "${album.title}"? Its tracks won't be deleted, just moved out of this album.`}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -50,10 +53,12 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         <p className="text-sm text-muted">No tracks in this album yet.</p>
       ) : (
         <>
-          <p className="text-xs text-muted">
-            Drag a track onto another to add it as a version, or into the gap between tracks to
-            reorder.
-          </p>
+          {isOwner && (
+            <p className="text-xs text-muted">
+              Drag a track onto another to add it as a version, or into the gap between tracks to
+              reorder.
+            </p>
+          )}
           <ReorderableTrackList
             albumId={album.id}
             albumTitle={album.title}

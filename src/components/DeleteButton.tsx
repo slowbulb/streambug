@@ -1,5 +1,7 @@
 "use client";
 
+import { useIsOwner } from "@/components/AuthProvider";
+
 export function DeleteButton({
   action,
   confirmMessage,
@@ -11,6 +13,9 @@ export function DeleteButton({
   label?: string;
   className?: string;
 }) {
+  const isOwner = useIsOwner();
+  if (!isOwner) return null;
+
   return (
     <form
       action={action}

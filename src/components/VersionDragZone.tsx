@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { splitVersionIntoTrackAction } from "@/app/actions";
+import { useIsOwner } from "@/components/AuthProvider";
 import { VERSION_DRAG_MIME } from "@/lib/dragTypes";
 
 function isVersionDrag(e: DragEvent): boolean {
@@ -17,11 +18,14 @@ function isVersionDrag(e: DragEvent): boolean {
  * the two never trigger on each other's drags.
  */
 export function VersionDragZone() {
+  const isOwner = useIsOwner();
   const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
   const dragCounter = useRef(0);
 
   useEffect(() => {
+    if (!isOwner) return;
+
     function onDragEnter(e: DragEvent) {
       if (!isVersionDrag(e)) return;
       e.preventDefault();
@@ -66,9 +70,9 @@ export function VersionDragZone() {
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("drop", onDrop);
     };
-  }, []);
+  }, [isOwner]);
 
-  if (!isDragging && status === "idle") return null;
+  if (!isOwner || (!isDragging && status === "idle")) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center border-4 border-dashed border-accent bg-accent/10 backdrop-blur-sm">

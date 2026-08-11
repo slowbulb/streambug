@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { logoutAction } from "@/app/actions";
+import { isOwnerSession } from "@/lib/auth";
 
-export function NavBar() {
+export async function NavBar() {
+  const isOwner = await isOwnerSession();
+
   return (
     <header className="border-b-2 border-foreground bg-surface">
       <nav className="mx-auto flex max-w-5xl items-center gap-6 px-4 py-4">
@@ -18,12 +22,33 @@ export function NavBar() {
             Map
           </Link>
         </div>
-        <Link
-          href="/tracks/new"
-          className="ml-auto rounded-sm bg-accent px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-accent-foreground hover:opacity-90"
-        >
-          Upload
-        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {isOwner ? (
+            <>
+              <Link
+                href="/tracks/new"
+                className="rounded-sm bg-accent px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-accent-foreground hover:opacity-90"
+              >
+                Upload
+              </Link>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="text-xs uppercase tracking-wide text-muted hover:text-accent"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="text-xs uppercase tracking-wide text-muted hover:text-accent"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </nav>
     </header>
   );

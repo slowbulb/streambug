@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { quickAddTrackAction } from "@/app/actions";
+import { useIsOwner } from "@/components/AuthProvider";
 import { analyzeAudioClient, probeDurationClient, uploadFileDirect } from "@/lib/clientUpload";
 import { titleFromFilename } from "@/lib/formatLufs";
 
@@ -24,6 +25,7 @@ function hasFiles(e: DragEvent): boolean {
  * track to that album (detected from the URL), otherwise it's a single.
  */
 export function GlobalDropZone({ hasBlob }: { hasBlob: boolean }) {
+  const isOwner = useIsOwner();
   const pathname = usePathname();
   const [isDragging, setIsDragging] = useState(false);
   const [uploads, setUploads] = useState<UploadStatus[]>([]);
@@ -33,6 +35,8 @@ export function GlobalDropZone({ hasBlob }: { hasBlob: boolean }) {
   const currentAlbumId = albumMatch && albumMatch[1] !== "new" ? albumMatch[1] : undefined;
 
   useEffect(() => {
+    if (!isOwner) return;
+
     async function handleFile(file: File) {
       const id = crypto.randomUUID();
       setUploads((u) => [...u, { id, fileName: file.name, state: "uploading" }]);
@@ -112,7 +116,9 @@ export function GlobalDropZone({ hasBlob }: { hasBlob: boolean }) {
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("drop", onDrop);
     };
-  }, [currentAlbumId, hasBlob]);
+  }, [currentAlbumId, hasBlob, isOwner]);
+
+  if (!isOwner) return null;
 
   return (
     <>

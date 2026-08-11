@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { NewTrackForm } from "@/components/upload/NewTrackForm";
+import { isOwnerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isBlobStorageEnabled } from "@/lib/storage";
 
@@ -7,6 +9,7 @@ export default async function NewTrackPage({
 }: {
   searchParams: Promise<{ albumId?: string }>;
 }) {
+  if (!(await isOwnerSession())) redirect("/login?redirectTo=%2Ftracks%2Fnew");
   const { albumId } = await searchParams;
   const albums = await prisma.album.findMany({ orderBy: { title: "asc" } });
 

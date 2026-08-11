@@ -1,10 +1,12 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { updateTrackAction } from "@/app/actions";
 import { SubmitButton } from "@/components/SubmitButton";
+import { isOwnerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export default async function EditTrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await isOwnerSession())) redirect(`/login?redirectTo=${encodeURIComponent(`/tracks/${id}/edit`)}`);
   const [track, albums] = await Promise.all([
     prisma.track.findUnique({ where: { id } }),
     prisma.album.findMany({ orderBy: { title: "asc" } }),

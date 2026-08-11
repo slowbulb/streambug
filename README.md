@@ -43,9 +43,12 @@ deploying.
    `@prisma/adapter-pg`, i.e. a plain `postgresql://` connection string).
 2. Create a **Vercel Blob** store (Storage tab on your project) and copy its
    read-write token into `BLOB_READ_WRITE_TOKEN`.
-3. Set `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` in your platform's
-   environment variables (all environments you deploy to).
-4. The `build` script runs `prisma migrate deploy` before `next build`, so
+3. Pick an `OWNER_PASSWORD` and generate a `SESSION_SECRET` (e.g. `openssl
+   rand -base64 32`) — see [Authentication](#authentication).
+4. Set `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `OWNER_PASSWORD`, and
+   `SESSION_SECRET` in your platform's environment variables (all
+   environments you deploy to).
+5. The `build` script runs `prisma migrate deploy` before `next build`, so
    pending migrations are applied automatically on every deploy.
 
 ### Supabase specifically
@@ -61,6 +64,31 @@ strings — use both:
 
 `prisma.config.ts` picks `DIRECT_URL` for migrations when it's set, falling
 back to `DATABASE_URL` if not (e.g. a single non-pooled Postgres in local dev).
+
+## Authentication
+
+Anyone with the URL can browse and play — there's a single owner account
+(you), and only signing in as the owner unlocks uploading, editing,
+deleting, reordering, merging, splitting, and pasting lyrics. There's no
+user database or sign-up; it's one shared password set via the
+`OWNER_PASSWORD` environment variable, checked with a constant-time
+comparison (`src/lib/auth.ts`). Signing in at `/login` sets a signed,
+HttpOnly session cookie (`SESSION_SECRET` env var, HS256 via
+[`jose`](https://github.com/panva/jose), 30-day expiry); there's nothing to
+migrate and no per-user data — everyone who's signed in as the owner shares
+the same session semantics.
+
+The actual security boundary is `requireOwner()`, called at the top of
+every mutating Server Action in `src/app/actions.ts`, plus a matching check
+in `src/app/api/upload/route.ts` (the Blob upload-token endpoint, which
+bypasses `actions.ts` entirely and would otherwise let anyone upload
+directly to storage). Everything else — hidden Upload/Edit/Delete buttons,
+disabled drag handles, read-only lyrics — is UX built on top of that, via
+an `isOwner` flag computed once server-side in the root layout and exposed
+to client components through `src/components/AuthProvider.tsx`
+(`useIsOwner()`); pages with a form and nothing else to offer a visitor
+(`/tracks/new`, `/albums/new`, edit pages) redirect straight to `/login`
+for a signed-out visitor rather than just hiding their own link to it.
 
 ## File storage
 
@@ -299,10 +327,10 @@ separate fields you'd fill in independently.
 
 ## Known gaps
 
-- **No authentication.** Anything uploaded is visible/editable to anyone
-  with the deployed URL. This is meant as a personal, presumably
-  access-controlled deployment (e.g. behind your host's access controls); add
-  auth before putting real content on a public URL.
+- **Single shared owner password**, not per-user accounts — see
+  [Authentication](#authentication). Fine for a personal library with one
+  owner; not a fit if you want multiple people to have their own edit
+  access.
 - LUFS measurement decodes the full file in the browser, which is memory-
   heavy for very long/lossless files on low-end devices; it's best-effort and
   silently skipped if it fails.

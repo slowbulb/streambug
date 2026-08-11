@@ -11,6 +11,7 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { AddVersionForm } from "@/components/upload/AddVersionForm";
 import { TrackPlayPanel } from "@/components/player/TrackPlayPanel";
+import { isOwnerSession } from "@/lib/auth";
 import { formatBytes } from "@/lib/formatBytes";
 import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
 import { formatTime } from "@/lib/formatTime";
@@ -20,7 +21,7 @@ import { isBlobStorageEnabled } from "@/lib/storage";
 
 export default async function TrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const track = await getTrackForPlayer(id);
+  const [track, isOwner] = await Promise.all([getTrackForPlayer(id), isOwnerSession()]);
   if (!track) notFound();
 
   const playerTrack = toPlayerTrack(track);
@@ -35,12 +36,14 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
         )}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold">{track.title}</h1>
-          <Link
-            href={`/tracks/${track.id}/edit`}
-            className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
-          >
-            Edit
-          </Link>
+          {isOwner && (
+            <Link
+              href={`/tracks/${track.id}/edit`}
+              className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-surface"
+            >
+              Edit
+            </Link>
+          )}
         </div>
       </div>
 
@@ -63,51 +66,59 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
                   {formatBytes(version.fileSize)}
                   {formatLufs(version.lufs) && ` · ${formatLufs(version.lufs)}`}
                 </span>
-                <span className="ml-auto flex items-center gap-2">
-                  {!version.isDefault && (
-                    <form action={setDefaultVersionAction.bind(null, track.id, version.id)}>
-                      <button
-                        type="submit"
-                        className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-background"
-                      >
-                        Make default
-                      </button>
-                    </form>
-                  )}
-                  {track.versions.length > 1 && (
-                    <DeleteButton
-                      action={deleteVersionAction.bind(null, track.id, version.id)}
-                      confirmMessage={`Delete ${formatVersionLabel(version)}? This can't be undone.`}
-                      label="Delete"
-                    />
-                  )}
-                </span>
+                {isOwner && (
+                  <span className="ml-auto flex items-center gap-2">
+                    {!version.isDefault && (
+                      <form action={setDefaultVersionAction.bind(null, track.id, version.id)}>
+                        <button
+                          type="submit"
+                          className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-background"
+                        >
+                          Make default
+                        </button>
+                      </form>
+                    )}
+                    {track.versions.length > 1 && (
+                      <DeleteButton
+                        action={deleteVersionAction.bind(null, track.id, version.id)}
+                        confirmMessage={`Delete ${formatVersionLabel(version)}? This can't be undone.`}
+                        label="Delete"
+                      />
+                    )}
+                  </span>
+                )}
               </summary>
 
-              <div className="border-t border-border px-4 py-3">
-                <LyricsEditor
-                  trackId={track.id}
-                  versionId={version.id}
-                  initialText={toLrc(version.lyrics)}
-                  hasLyrics={version.lyrics.length > 0}
-                />
-              </div>
+              {isOwner && (
+                <div className="border-t border-border px-4 py-3">
+                  <LyricsEditor
+                    trackId={track.id}
+                    versionId={version.id}
+                    initialText={toLrc(version.lyrics)}
+                    hasLyrics={version.lyrics.length > 0}
+                  />
+                </div>
+              )}
             </details>
           ))}
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-muted">Add a version</h2>
-        <AddVersionForm trackId={track.id} hasBlob={isBlobStorageEnabled()} />
-      </section>
+      {isOwner && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-muted">Add a version</h2>
+          <AddVersionForm trackId={track.id} hasBlob={isBlobStorageEnabled()} />
+        </section>
+      )}
 
-      <DeleteButton
-        action={deleteTrackAction.bind(null, track.id)}
-        confirmMessage={`Delete "${track.title}" and all its versions? This can't be undone.`}
-        label="Delete track"
-        className="self-start"
-      />
+      {isOwner && (
+        <DeleteButton
+          action={deleteTrackAction.bind(null, track.id)}
+          confirmMessage={`Delete "${track.title}" and all its versions? This can't be undone.`}
+          label="Delete track"
+          className="self-start"
+        />
+      )}
     </div>
   );
 }

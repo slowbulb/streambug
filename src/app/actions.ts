@@ -6,6 +6,26 @@ import { prisma } from "@/lib/db";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage";
 import { probeDurationSec } from "@/lib/audioMeta";
 import { parseLrc } from "@/lib/lrc";
+import { checkOwnerPassword, clearOwnerSession, createOwnerSession, requireOwner } from "@/lib/auth";
+
+/** Sign in as the owner. Redirects back to `redirectTo` (defaults to "/") on success. */
+export async function loginAction(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+  const redirectTo = String(formData.get("redirectTo") ?? "/");
+  const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/";
+
+  if (!checkOwnerPassword(password)) {
+    redirect(`/login?error=1&redirectTo=${encodeURIComponent(safeRedirect)}`);
+  }
+
+  await createOwnerSession();
+  redirect(safeRedirect);
+}
+
+export async function logoutAction() {
+  await clearOwnerSession();
+  redirect("/");
+}
 
 function str(formData: FormData, key: string): string | null {
   const v = formData.get(key);
@@ -115,6 +135,7 @@ async function resolveUploadedCover(
 
 /** Create an album, optionally with a cover image. */
 export async function createAlbumAction(formData: FormData) {
+  await requireOwner();
   const title = str(formData, "title");
   if (!title) throw new Error("Album title is required");
   const artist = str(formData, "artist");
@@ -139,6 +160,7 @@ export async function createAlbumAction(formData: FormData) {
 
 /** Edit an album's title/description, optionally replacing its cover. */
 export async function updateAlbumAction(albumId: string, formData: FormData) {
+  await requireOwner();
   const title = str(formData, "title");
   if (!title) throw new Error("Album title is required");
   const artist = str(formData, "artist");
@@ -169,6 +191,7 @@ export async function updateAlbumAction(albumId: string, formData: FormData) {
 
 /** Delete an album. Its tracks are kept and simply detached (moved to "no album"). */
 export async function deleteAlbumAction(albumId: string) {
+  await requireOwner();
   const album = await prisma.album.findUniqueOrThrow({ where: { id: albumId } });
 
   await prisma.album.delete({ where: { id: albumId } });
@@ -181,6 +204,7 @@ export async function deleteAlbumAction(albumId: string) {
 }
 
 async function createTrackRecord(formData: FormData) {
+  await requireOwner();
   const title = str(formData, "title");
   if (!title) throw new Error("Track title is required");
   const albumId = str(formData, "albumId");
@@ -240,6 +264,7 @@ export async function quickAddTrackAction(formData: FormData): Promise<{ id: str
 
 /** Edit a track's title, or move it to a different album. */
 export async function updateTrackAction(trackId: string, formData: FormData) {
+  await requireOwner();
   const title = str(formData, "title");
   if (!title) throw new Error("Track title is required");
   const albumId = str(formData, "albumId");
@@ -255,6 +280,7 @@ export async function updateTrackAction(trackId: string, formData: FormData) {
 
 /** Add another version (e.g. a remix or live take) of an existing track. */
 export async function addVersionAction(trackId: string, formData: FormData) {
+  await requireOwner();
   const label = str(formData, "label");
 
   const [
@@ -287,6 +313,7 @@ export async function addVersionAction(trackId: string, formData: FormData) {
 
 /** Make a version the one that plays by default when the track is opened. */
 export async function setDefaultVersionAction(trackId: string, versionId: string) {
+  await requireOwner();
   await prisma.$transaction([
     prisma.trackVersion.updateMany({ where: { trackId }, data: { isDefault: false } }),
     prisma.trackVersion.update({ where: { id: versionId }, data: { isDefault: true } }),
@@ -297,6 +324,7 @@ export async function setDefaultVersionAction(trackId: string, versionId: string
 
 /** Delete a single version. A track always needs at least one version left. */
 export async function deleteVersionAction(trackId: string, versionId: string) {
+  await requireOwner();
   const versions = await prisma.trackVersion.findMany({
     where: { trackId },
     orderBy: { createdAt: "asc" },
@@ -326,6 +354,7 @@ export async function deleteVersionAction(trackId: string, versionId: string) {
 
 /** Delete a track entirely, along with all of its versions and lyrics. */
 export async function deleteTrackAction(trackId: string) {
+  await requireOwner();
   const track = await prisma.track.findUniqueOrThrow({
     where: { id: trackId },
     include: { versions: true },
@@ -342,6 +371,7 @@ export async function deleteTrackAction(trackId: string) {
 
 /** Replace a version's synced lyrics from pasted LRC-format text. */
 export async function saveLyricsAction(trackId: string, versionId: string, formData: FormData) {
+  await requireOwner();
   const lrcText = str(formData, "lrcText") ?? "";
   const lines = parseLrc(lrcText);
   if (lines.length === 0) {
@@ -362,6 +392,7 @@ export async function saveLyricsAction(trackId: string, versionId: string, formD
 
 /** Clear a version's synced lyrics. */
 export async function clearLyricsAction(trackId: string, versionId: string) {
+  await requireOwner();
   await prisma.lyricLine.deleteMany({ where: { trackVersionId: versionId } });
   revalidatePath(`/tracks/${trackId}`);
 }
@@ -372,6 +403,7 @@ export async function clearLyricsAction(trackId: string, versionId: string) {
  * rows above; unrelated until synced lyrics are built on top of this later.
  */
 export async function updatePlainLyricsAction(trackId: string, formData: FormData) {
+  await requireOwner();
   const lyricsText = str(formData, "lyrics");
   const track = await prisma.track.update({
     where: { id: trackId },
@@ -394,6 +426,7 @@ export async function updatePlainLyricsAction(trackId: string, formData: FormDat
  * re-pointed at new TrackVersion rows), never re-uploaded or deleted.
  */
 export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetTrackId: string) {
+  await requireOwner();
   if (sourceTrackId === targetTrackId) return;
 
   const [source, target, targetMaxVersion] = await Promise.all([
@@ -461,6 +494,7 @@ export async function mergeTrackIntoVersionAction(sourceTrackId: string, targetT
  * the track only has one version (there'd be nothing left behind).
  */
 export async function splitVersionIntoTrackAction(versionId: string) {
+  await requireOwner();
   const version = await prisma.trackVersion.findUniqueOrThrow({
     where: { id: versionId },
     include: { track: { include: { versions: { orderBy: { versionNumber: "asc" } } } } },
@@ -516,6 +550,7 @@ export async function moveTrackAction(
   albumId: string | null,
   beforeTrackId?: string,
 ) {
+  await requireOwner();
   const before = await prisma.track.findUniqueOrThrow({ where: { id: trackId } });
 
   await prisma.$transaction(async (tx) => {
@@ -549,6 +584,7 @@ export async function moveTrackAction(
  * fetches and decodes the already-stored audio to produce it.
  */
 export async function backfillWaveformAction(versionId: string, waveformPeaks: number[]) {
+  await requireOwner();
   const version = await prisma.trackVersion.update({
     where: { id: versionId },
     data: { waveformPeaks },

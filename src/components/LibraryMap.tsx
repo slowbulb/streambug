@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { moveTrackAction } from "@/app/actions";
+import { useIsOwner } from "@/components/AuthProvider";
 import { formatTime } from "@/lib/formatTime";
 import type { LibraryMapAlbum, LibraryMapTrack } from "@/lib/queries";
 
@@ -122,6 +123,7 @@ function Cluster({
   onDropOnCluster: () => void;
   onDropOnTrack: (trackId: string) => void;
 }) {
+  const isOwner = useIsOwner();
   const headerKey = `header:${nodeKey}`;
 
   return (
@@ -168,11 +170,15 @@ function Cluster({
               <div key={track.id} className="relative py-1">
                 <span className="absolute -left-4 top-1/2 h-px w-4 bg-border" />
                 <div
-                  draggable
-                  onDragStart={(e) => {
-                    onDragStartTrack(track.id);
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
+                  draggable={isOwner}
+                  onDragStart={
+                    isOwner
+                      ? (e) => {
+                          onDragStartTrack(track.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }
+                      : undefined
+                  }
                   onDragOver={(e) => {
                     if (!dragId || dragId === track.id) return;
                     e.preventDefault();
@@ -185,9 +191,9 @@ function Cluster({
                     onDropOnTrack(track.id);
                   }}
                   onDragEnd={() => onDragOverKey(null)}
-                  className={`flex cursor-grab items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors active:cursor-grabbing ${
-                    isDragOver ? "border-accent bg-accent/10" : "border-border bg-surface"
-                  }`}
+                  className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
+                    isOwner ? "cursor-grab active:cursor-grabbing" : ""
+                  } ${isDragOver ? "border-accent bg-accent/10" : "border-border bg-surface"}`}
                 >
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-background text-[11px] tabular-nums text-muted">
                     {i + 1}

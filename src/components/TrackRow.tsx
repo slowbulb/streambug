@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PlayTrackButton } from "@/components/player/PlayTrackButton";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { useIsOwner } from "@/components/AuthProvider";
 import { LyricsEditor } from "@/components/LyricsEditor";
 import { Waveform } from "@/components/Waveform";
 import { formatTime } from "@/lib/formatTime";
@@ -35,6 +36,7 @@ export function TrackRow({
   /** Shown in place of the normal row while a drag is hovering over it. */
   dropHint?: string;
 }) {
+  const isOwner = useIsOwner();
   const [expanded, setExpanded] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [draggingVersionId, setDraggingVersionId] = useState<string | null>(null);
@@ -48,10 +50,10 @@ export function TrackRow({
 
   return (
     <div
-      {...dragProps}
+      {...(isOwner ? dragProps : undefined)}
       className={`rounded-lg border bg-surface transition-colors ${
         isDragOver ? "border-accent ring-2 ring-accent" : "border-border"
-      } ${dragProps?.draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      } ${isOwner && dragProps?.draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <div className="flex items-center gap-3 px-3 py-2.5">
         <PlayTrackButton track={playerTrack} />
@@ -118,17 +120,21 @@ export function TrackRow({
             return (
               <div
                 key={v.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(VERSION_DRAG_MIME, JSON.stringify({ versionId: v.id }));
-                  e.dataTransfer.effectAllowed = "move";
-                  setDraggingVersionId(v.id);
-                }}
+                draggable={isOwner}
+                onDragStart={
+                  isOwner
+                    ? (e) => {
+                        e.dataTransfer.setData(VERSION_DRAG_MIME, JSON.stringify({ versionId: v.id }));
+                        e.dataTransfer.effectAllowed = "move";
+                        setDraggingVersionId(v.id);
+                      }
+                    : undefined
+                }
                 onDragEnd={() => setDraggingVersionId(null)}
-                title="Drag out to make this its own track"
-                className={`flex cursor-grab items-center gap-3 active:cursor-grabbing ${
-                  draggingVersionId === v.id ? "opacity-40" : ""
-                }`}
+                title={isOwner ? "Drag out to make this its own track" : undefined}
+                className={`flex items-center gap-3 ${
+                  isOwner ? "cursor-grab active:cursor-grabbing" : ""
+                } ${draggingVersionId === v.id ? "opacity-40" : ""}`}
               >
                 <PlayTrackButton track={playerTrack} versionId={v.id} size="sm" />
                 <span className="min-w-0 max-w-40 shrink truncate text-sm">

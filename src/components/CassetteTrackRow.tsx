@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PlayTrackButton } from "@/components/player/PlayTrackButton";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { useIsOwner } from "@/components/AuthProvider";
 import { LyricsEditor } from "@/components/LyricsEditor";
 import { formatTime } from "@/lib/formatTime";
 import { formatVersionLabel } from "@/lib/formatLufs";
@@ -44,6 +45,7 @@ export function CassetteTrackRow({
   isDragOver?: boolean;
   dropHint?: string;
 }) {
+  const isOwner = useIsOwner();
   const [expanded, setExpanded] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [draggingVersionId, setDraggingVersionId] = useState<string | null>(null);
@@ -55,8 +57,8 @@ export function CassetteTrackRow({
 
   return (
     <div
-      {...dragProps}
-      className={dragProps?.draggable ? "cursor-grab active:cursor-grabbing" : ""}
+      {...(isOwner ? dragProps : undefined)}
+      className={isOwner && dragProps?.draggable ? "cursor-grab active:cursor-grabbing" : ""}
     >
       <div
         className={`flex items-baseline gap-2 border-b py-1.5 transition-colors ${
@@ -121,17 +123,21 @@ export function CassetteTrackRow({
             return (
               <div
                 key={v.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(VERSION_DRAG_MIME, JSON.stringify({ versionId: v.id }));
-                  e.dataTransfer.effectAllowed = "move";
-                  setDraggingVersionId(v.id);
-                }}
+                draggable={isOwner}
+                onDragStart={
+                  isOwner
+                    ? (e) => {
+                        e.dataTransfer.setData(VERSION_DRAG_MIME, JSON.stringify({ versionId: v.id }));
+                        e.dataTransfer.effectAllowed = "move";
+                        setDraggingVersionId(v.id);
+                      }
+                    : undefined
+                }
                 onDragEnd={() => setDraggingVersionId(null)}
-                title="Drag out to make this its own track"
-                className={`flex cursor-grab items-baseline gap-2 text-[12px] active:cursor-grabbing ${
-                  draggingVersionId === v.id ? "opacity-40" : ""
-                }`}
+                title={isOwner ? "Drag out to make this its own track" : undefined}
+                className={`flex items-baseline gap-2 text-[12px] ${
+                  isOwner ? "cursor-grab active:cursor-grabbing" : ""
+                } ${draggingVersionId === v.id ? "opacity-40" : ""}`}
               >
                 <PlayTrackButton
                   track={playerTrack}
