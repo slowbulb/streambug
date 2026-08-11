@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PlayTrackButton } from "@/components/player/PlayTrackButton";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { LyricsEditor } from "@/components/LyricsEditor";
 import { formatTime } from "@/lib/formatTime";
 import { formatVersionLabel } from "@/lib/formatLufs";
 import { toPlayerTrack } from "@/lib/toPlayerTrack";
@@ -44,6 +45,7 @@ export function CassetteTrackRow({
   dropHint?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [draggingVersionId, setDraggingVersionId] = useState<string | null>(null);
   const player = usePlayer();
   const playerTrack = toPlayerTrack(track);
@@ -82,6 +84,13 @@ export function CassetteTrackRow({
             >
               {track.title}
             </Link>
+            <button
+              onClick={() => setShowLyrics((v) => !v)}
+              draggable={false}
+              className={`shrink-0 ${FADED_INK} hover:text-[#b3312c]`}
+            >
+              [lyrics]
+            </button>
             {hasMultipleVersions && (
               <button
                 onClick={() => setExpanded((v) => !v)}
@@ -98,6 +107,12 @@ export function CassetteTrackRow({
           </>
         )}
       </div>
+
+      {showLyrics && !isDragOver && (
+        <div className="border-b border-[#8a7a5c]/25 py-1.5 pl-9">
+          <LyricsEditor trackId={track.id} initialText={track.lyricsText} />
+        </div>
+      )}
 
       {expanded && !isDragOver && (
         <div className="flex flex-col gap-1 border-b border-[#8a7a5c]/25 py-1.5 pl-9">

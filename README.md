@@ -262,13 +262,23 @@ both once the new file's metadata loads — so switching feels like changing
 would need dual-buffering two full audio files at once), but the position
 and playback state carry over.
 
-## Synced lyrics
+## Lyrics
 
-Paste LRC-format lyrics into a version's lyrics editor (on the track page,
-under that version). Each `[mm:ss.xx] line` becomes a synced line; the
-currently-playing line highlights and auto-scrolls into view as the track
-plays (`src/components/player/SyncedLyrics.tsx`). Unsynced/plain-text lyrics
-aren't supported — sync is the point of the feature.
+Two independent lyrics features, deliberately not connected to each other yet:
+
+- **Plain lyrics** (`Track.lyricsText`, `src/components/LyricsEditor.tsx`):
+  a "Lyrics" toggle on every track row (home, `/tracks`, and the album
+  page's cassette-styled rows) expands an inline paste-and-save box — no
+  timestamps, just whatever text you paste, shown as-is. One per track
+  (not per version). This is the quick "just get the words in" path.
+- **Synced lyrics** (`LyricLine`, per version): paste LRC-format lyrics
+  into a version's lyrics editor on the track page. Each `[mm:ss.xx] line`
+  becomes a synced line; the currently-playing line highlights and
+  auto-scrolls into view as the track plays
+  (`src/components/player/SyncedLyrics.tsx`).
+
+Turning plain lyrics into synced ones isn't built yet — for now they're two
+separate fields you'd fill in independently.
 
 ## Project structure
 

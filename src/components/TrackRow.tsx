@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PlayTrackButton } from "@/components/player/PlayTrackButton";
 import { usePlayer } from "@/components/player/PlayerProvider";
+import { LyricsEditor } from "@/components/LyricsEditor";
 import { Waveform } from "@/components/Waveform";
 import { formatTime } from "@/lib/formatTime";
 import { formatLufs, formatVersionLabel } from "@/lib/formatLufs";
@@ -35,6 +36,7 @@ export function TrackRow({
   dropHint?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [draggingVersionId, setDraggingVersionId] = useState<string | null>(null);
   const player = usePlayer();
   const playerTrack = toPlayerTrack(track);
@@ -77,6 +79,13 @@ export function TrackRow({
             className="w-40 shrink-0"
           />
         )}
+        <button
+          onClick={() => setShowLyrics((v) => !v)}
+          draggable={false}
+          className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted hover:border-accent hover:text-accent"
+        >
+          Lyrics {showLyrics ? "▲" : "▼"}
+        </button>
         {hasMultipleVersions && (
           <button
             onClick={() => setExpanded((v) => !v)}
@@ -95,6 +104,12 @@ export function TrackRow({
           {defaultVersion?.durationSec ? formatTime(defaultVersion.durationSec) : "—"}
         </span>
       </div>
+
+      {showLyrics && !isDragOver && (
+        <div className="border-t border-border px-3 py-2.5">
+          <LyricsEditor trackId={track.id} initialText={track.lyricsText} />
+        </div>
+      )}
 
       {expanded && !isDragOver && (
         <div className="flex flex-col gap-1.5 border-t border-border px-3 py-2.5">

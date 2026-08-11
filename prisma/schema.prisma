@@ -29,6 +29,9 @@ model Track {
   album     Album?   @relation(fields: [albumId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Plain pasted lyrics, not time-synced — separate from the per-version
+  // synced LyricLine rows below, which are LRC-based and unrelated to this.
+  lyricsText String?
 
   versions TrackVersion[]
 

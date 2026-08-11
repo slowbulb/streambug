@@ -367,6 +367,26 @@ export async function clearLyricsAction(trackId: string, versionId: string) {
 }
 
 /**
+ * Replace a track's plain pasted lyrics — no LRC timestamps, just whatever
+ * was pasted, stored as-is. Separate from the per-version synced LyricLine
+ * rows above; unrelated until synced lyrics are built on top of this later.
+ */
+export async function updatePlainLyricsAction(trackId: string, formData: FormData) {
+  const lyricsText = str(formData, "lyrics");
+  const track = await prisma.track.update({
+    where: { id: trackId },
+    data: { lyricsText },
+    select: { albumId: true },
+  });
+
+  revalidatePath("/");
+  revalidatePath("/albums");
+  revalidatePath("/tracks");
+  revalidatePath(`/tracks/${trackId}`);
+  if (track.albumId) revalidatePath(`/albums/${track.albumId}`);
+}
+
+/**
  * Drag one track onto another: folds every version of the source track into
  * the target track as new versions (auto-numbered after the target's
  * existing ones), carrying their lyrics along, then deletes the now-empty
